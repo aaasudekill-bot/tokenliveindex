@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, jsonify
 import requests
 
@@ -41,4 +42,4 @@ def convert():
         return jsonify({"status": "error", "message": "Gagal terhubung ke server CoinGecko"})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
