@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Live Index - Crypto Calculator</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 40px auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        h1 { text-align: center; color: #38bdf8; font-size: 24px; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
+        
+        .calculator-box { background: #0f172a; padding: 20px; border-radius: 8px; }
+        
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #cbd5e1; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #475569; border-radius: 6px; background: #1e293b; color: #fff; font-size: 16px; box-sizing: border-box; }
+        input:focus, select:focus { outline: none; border-color: #38bdf8; }
+        
+        button { width: 100%; padding: 14px; background: linear-gradient(90deg, #38bdf8, #818cf8); color: #0f172a; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        
+        .result-box { margin-top: 20px; padding: 20px; background: #334155; border-radius: 8px; text-align: center; display: none; }
+        .result-amount { font-size: 28px; color: #4ade80; font-weight: bold; }
+        .result-detail { font-size: 14px; color: #94a3b8; margin-top: 5px; }
+
+        /* AREA PENTING UNTUK ADSENSE */
+        .content-section { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; line-height: 1.6; color: #cbd5e1; }
+        .content-section h2 { color: #fbbf24; font-size: 18px; }
+        .content-section p { font-size: 15px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Token Live Index</h1>
+    <div class="subtitle">Real-Time Crypto Fiat Calculator</div>
+
+    <div class="calculator-box">
+        <label>Jumlah Crypto</label>
+        <input type="number" id="amount" value="1" min="0" step="any">
+
+        <label>Pilih Crypto</label>
+        <select id="crypto">
+            <option value="bitcoin">Bitcoin (BTC)</option>
+            <option value="ethereum">Ethereum (ETH)</option>
+            <option value="binancecoin">BNB (BNB)</option>
+            <option value="solana">Solana (SOL)</option>
+            <option value="ripple">XRP (XRP)</option>
+            <option value="cardano">Cardano (ADA)</option>
+            <option value="dogecoin">Dogecoin (DOGE)</option>
+        </select>
+
+        <label>Konversi ke Mata Uang</label>
+        <select id="fiat">
+            <option value="usd">US Dollar (USD)</option>
+            <option value="idr">Rupiah Indonesia (IDR)</option>
+            <option value="eur">Euro (EUR)</option>
+            <option value="gbp">British Pound (GBP)</option>
+            <option value="jpy">Japanese Yen (JPY)</option>
+        </select>
+
+        <button onclick="calculateCrypto()">Hitung Sekarang</button>
+
+        <div class="result-box" id="resultBox">
+            <div class="result-amount" id="resultAmount"></div>
+            <div class="result-detail" id="resultDetail"></div>
+        </div>
+    </div>
+
+    <!-- INI CONTOH KONTEN ARTIKEL UNTUK MENGELOH GOOGLE ADSENSE -->
+    <!-- Nanti kamu bisa ganti ini dengan artikel hasil AI + Editanmu -->
+    <div class="content-section">
+        <h2>Apa Itu Token Live Index?</h2>
+        <p>Sebelum nebak-nebak masuk ke dunia crypto, ada satu langkah krusial yang sering banget kelewat: menghitung konversinya. Ini penting banget karena harga aset crypto umumnya patokannya pakai dolar AS, sementara kita pakai rupiah. Kalau kita asal beli tanpa ngecek nilai tukar dan biaya konversi di marketplace, bisa-bisa angka untung di layar cuma ilusi. Selisih kurs atau biaya spread yang nyelip bisa bikin saldo yang kita kira nambah, ternyata malah berkurang. Dengan menghitung konversi matang-matang sebelum deposit atau swap koin, kita jadi lebih sadar berapa nilai uang asli yang keluar dan terhindar dari kejutan harga yang nggak sesuai ekspektasi. Lebih dari itu, kebiasaan menghitung konversi ini juga bantu banget dalam manajemen risiko dan nentuin strategi. Kita jadi nggak cuma tergiur koin yang harganya lagi meroket, tapi juga memperhitungkan biaya gas, slippage, atau potongan biaya transaksi yang bikin modal makin besar. Dari situ, kita bisa nentuin titik take profit dan cut loss yang lebih realistis dan rasional sesuai modal awal. Pada akhirnya, investasi crypto memang nyerempet-nyerempet spekulasi, tapi tetap butuh kalkulasi yang waras. Mending luangkan waktu beberapa menit buat bikin hitungan yang pas, daripada nantinya panik dan rugi cuma gara-gara salah perkiraan nilai uang kita sendiri.</p>
+        <p style="margin-top:15px;">Memahami nilai tukar aset digital terhadap fiat sangat penting untuk manajemen portofolio. Gunakan alat ini sebagai referensi cepat sebelum Anda mengambil keputusan transaksi di exchange favorit Anda.</p>
+    </div>
+</div>
+
+<!-- LOGIKA JAVASCRIPT UNTUK HUBUNGKE KE PYTHON -->
+<script>
+    function calculateCrypto() {
+        const amount = document.getElementById('amount').value;
+        const crypto = document.getElementById('crypto').value;
+        const fiat = document.getElementById('fiat').value;
+        const resultBox = document.getElementById('resultBox');
+        const resultAmount = document.getElementById('resultAmount');
+        const resultDetail = document.getElementById('resultDetail');
+
+        // Tampilkan loading
+        resultBox.style.display = 'block';
+        resultAmount.innerHTML = "Mengambil data...";
+        resultDetail.innerHTML = "";
+
+        // Mengirim permintaan ke backend Python
+        fetch(`/api/convert?amount=${amount}&crypto=${crypto}&fiat=${fiat}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    resultAmount.innerHTML = `${data.total.toLocaleString()} ${data.fiat}`;
+                    
+                    // Format angka agar ada titik ribuan
+                    let priceFormatted = data.price.toLocaleString();
+                    resultDetail.innerHTML = `Harga 1 ${crypto} = ${priceFormatted} ${data.fiat}`;
+                } else {
+                    resultAmount.innerHTML = "Error";
+                    resultDetail.innerHTML = data.message;
+                }
+            })
+            .catch(error => {
+                resultAmount.innerHTML = "Gagal menghubungi server lokal";
+            });
+    }
+</script>
+
+</body>
+</html>
