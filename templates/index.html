@@ -1,116 +1,376 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Token Live Index - Crypto Calculator</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 40px auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid #334155; }
-        h1 { text-align: center; color: #38bdf8; font-size: 24px; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
-        
-        .calculator-box { background: #0f172a; padding: 20px; border-radius: 8px; }
-        
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #cbd5e1; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #475569; border-radius: 6px; background: #1e293b; color: #fff; font-size: 16px; box-sizing: border-box; }
-        input:focus, select:focus { outline: none; border-color: #38bdf8; }
-        
-        button { width: 100%; padding: 14px; background: linear-gradient(90deg, #38bdf8, #818cf8); color: #0f172a; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        
-        .result-box { margin-top: 20px; padding: 20px; background: #334155; border-radius: 8px; text-align: center; display: none; }
-        .result-amount { font-size: 28px; color: #4ade80; font-weight: bold; }
-        .result-detail { font-size: 14px; color: #94a3b8; margin-top: 5px; }
+    <title>Token Live Index - Master Aurora UI</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
 
-        /* AREA PENTING UNTUK ADSENSE */
-        .content-section { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; line-height: 1.6; color: #cbd5e1; }
-        .content-section h2 { color: #fbbf24; font-size: 18px; }
-        .content-section p { font-size: 15px; color: #94a3b8; }
+    <!-- DIPAKSA VERSI 3.8.0 AGAR TIDAK ERROR -->
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #050505;
+            --bg-surface: #0a0a0a;
+            --bg-elevated: #111111;
+            --accent: #10b981;
+            --accent-dim: rgba(16, 185, 129, 0.1);
+            --accent-glow: rgba(16, 185, 129, 0.4);
+            --text-main: #e5e5e5;
+            --text-muted: #525252;
+            --border-subtle: rgba(255, 255, 255, 0.05);
+            --radius: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .ambient-light {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+        .light-1 { width: 600px; height: 600px; background: rgba(16, 185, 129, 0.15); top: -20%; left: -10%; animation: meshFloat1 25s ease-in-out infinite; }
+        .light-2 { width: 500px; height: 500px; background: rgba(139, 92, 246, 0.12); bottom: -20%; right: -10%; animation: meshFloat2 30s ease-in-out infinite; }
+        .light-3 { width: 400px; height: 400px; background: rgba(59, 130, 246, 0.1); top: 50%; left: 50%; transform: translate(-50%, -50%); animation: meshFloat3 35s ease-in-out infinite; }
+        .light-4 { width: 350px; height: 350px; background: rgba(251, 191, 36, 0.07); top: 20%; right: 30%; animation: meshFloat4 20s ease-in-out infinite; }
+
+        @keyframes meshFloat1 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30vw, 20vh) scale(1.1); } 66% { transform: translate(10vw, 60vh) scale(0.9); } }
+        @keyframes meshFloat2 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(-40vw, -30vh) scale(1.2); } 66% { transform: translate(-20vw, 10vh) scale(0.8); } }
+        @keyframes meshFloat3 { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-20%, -60%) scale(1.3); } }
+        @keyframes meshFloat4 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-30vw, 40vh) scale(1.2); } }
+
+        h1, h2, h3, p, span, a { font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+        .font-mono { font-family: 'Space Grotesk', monospace; }
+
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 24px 5%; border-bottom: 1px solid var(--border-subtle);
+            background: rgba(5, 5, 5, 0.6); backdrop-filter: blur(24px) saturate(180%);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .logo-wrapper { display: flex; align-items: center; gap: 12px; }
+        .status-dot { width: 8px; height: 8px; background-color: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent-glow); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .logo { font-size: 1rem; font-weight: 600; letter-spacing: -0.5px; color: #d4d4d4; }
+
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; font-weight: 500; margin-left: 32px; transition: color 0.2s ease; }
+        .nav-links a:hover { color: #fff; }
+
+        .container {
+            max-width: 900px;
+            margin: 80px auto;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 32px;
+        }
+
+        .hero-side {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-right: 20px;
+            grid-row: 1 / 3;
+        }
+
+        .hero-side h1 { font-size: 3.5rem; font-weight: 700; line-height: 1; letter-spacing: -2px; margin-bottom: 24px; background: linear-gradient(to bottom, #ffffff, #a3a3a3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero-side p { font-size: 1rem; line-height: 1.7; color: #737373; font-weight: 400; border-left: 2px solid var(--accent); padding-left: 20px; }
+
+        .chart-container {
+            background: rgba(10, 10, 10, 0.6); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle); border-radius: var(--radius);
+            padding: 24px; display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .chart-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .chart-title { font-size: 1.1rem; font-weight: 600; color: #a3a3a3; }
+        .chart-controls { display: flex; gap: 8px; }
+        .chart-btn { background: var(--bg-elevated); border: 1px solid var(--border-subtle); color: #525252; padding: 6px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-family: 'Space Grotesk', monospace; }
+        .chart-btn:hover { color: #fff; border-color: rgba(255,255,255,0.2); }
+        .chart-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .chart-box { width: 100%; height: 300px; border-radius: 8px; overflow: hidden; }
+        .chart-error { display: none; color: #525252; font-size: 0.85rem; text-align: center; padding: 20px; }
+
+        .calculator-side {
+            background: rgba(10, 10, 10, 0.6); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle); border-radius: var(--radius);
+            padding: 32px; display: flex; flex-direction: column; gap: 20px;
+            position: relative; overflow: hidden;
+        }
+        .calculator-side::before { content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-glow), transparent); }
+
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 0.7rem; font-weight: 600; color: #525252; text-transform: uppercase; letter-spacing: 1.5px; }
+
+        input, select {
+            width: 100%; padding: 14px; border: 1px solid var(--border-subtle); border-radius: 10px;
+            background: rgba(17, 17, 17, 0.8); color: #fff; font-family: 'Space Grotesk', monospace;
+            font-size: 1rem; font-weight: 500; transition: all 0.2s ease;
+            appearance: none; -webkit-appearance: none; font-variant-numeric: tabular-nums;
+        }
+        select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23525252' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; cursor: pointer; }
+        input:focus, select:focus { outline: none; border-color: rgba(255, 255, 255, 0.15); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.05); }
+
+        .btn-calculate { width: 100%; padding: 16px; border: none; border-radius: 10px; background: #fff; color: #000; font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; position: relative; overflow: hidden; transition: color 0.3s ease; }
+        .btn-calculate::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(120deg, transparent, var(--accent), transparent); transform: translateX(-100%); transition: transform 0.6s ease; }
+        .btn-calculate:hover { color: #fff; }
+        .btn-calculate:hover::before { transform: translateX(100%); }
+        .btn-calculate:active { transform: scale(0.98); }
+        .btn-calculate.loading { pointer-events: none; }
+
+        .result-container { background: rgba(16, 185, 129, 0.03); border: 1px dashed rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 20px; text-align: center; display: none; opacity: 0; transition: opacity 0.4s ease; }
+        .result-container.show { display: block; opacity: 1; }
+        .result-label { font-size: 0.7rem; color: #525252; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;}
+        .result-amount { font-family: 'Space Grotesk', monospace; font-size: 2.5rem; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 8px; }
+        .result-detail { font-family: 'Space Grotesk', monospace; font-size: 0.85rem; color: #525252; }
+
+        .content-section { grid-column: 1 / -1; padding: 40px 0; border-top: 1px solid var(--border-subtle); color: #525252; font-size: 0.95rem; line-height: 1.8; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        footer { grid-column: 1 / -1; text-align: center; font-size: 0.75rem; color: #333; padding-bottom: 40px; }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; margin-top: 40px; }
+            .hero-side { grid-row: auto; padding-right: 0; margin-bottom: 20px; }
+            .hero-side h1 { font-size: 2.5rem; }
+            .content-section { grid-template-columns: 1fr; }
+            .ambient-light { filter: blur(80px); transform: scale(0.7); }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Token Live Index</h1>
-    <div class="subtitle">Real-Time Crypto Fiat Calculator</div>
+    <div class="ambient-light light-1"></div>
+    <div class="ambient-light light-2"></div>
+    <div class="ambient-light light-3"></div>
+    <div class="ambient-light light-4"></div>
 
-    <div class="calculator-box">
-        <label>Jumlah Crypto</label>
-        <input type="number" id="amount" value="1" min="0" step="any">
-
-        <label>Pilih Crypto</label>
-        <select id="crypto">
-            <option value="bitcoin">Bitcoin (BTC)</option>
-            <option value="ethereum">Ethereum (ETH)</option>
-            <option value="binancecoin">BNB (BNB)</option>
-            <option value="solana">Solana (SOL)</option>
-            <option value="ripple">XRP (XRP)</option>
-            <option value="cardano">Cardano (ADA)</option>
-            <option value="dogecoin">Dogecoin (DOGE)</option>
-        </select>
-
-        <label>Konversi ke Mata Uang</label>
-        <select id="fiat">
-            <option value="usd">US Dollar (USD)</option>
-            <option value="idr">Rupiah Indonesia (IDR)</option>
-            <option value="eur">Euro (EUR)</option>
-            <option value="gbp">British Pound (GBP)</option>
-            <option value="jpy">Japanese Yen (JPY)</option>
-        </select>
-
-        <button onclick="calculateCrypto()">Hitung Sekarang</button>
-
-        <div class="result-box" id="resultBox">
-            <div class="result-amount" id="resultAmount"></div>
-            <div class="result-detail" id="resultDetail"></div>
+    <nav>
+        <div class="logo-wrapper">
+            <div class="status-dot"></div>
+            <div class="logo">TokenLiveIndex</div>
         </div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/about">About</a>
+            <a href="/privacy">Privacy</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- KOLOM KIRI: TEKS -->
+        <div class="hero-side">
+            <h1>Convert Crypto.<br>Instantly.</h1>
+            <p>Precision valuation tools for the decentralized economy. Real-time data aggregation with zero latency interface.</p>
+        </div>
+
+        <!-- KOLOM KANAN ATAS: GRAFIK -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <h3 class="chart-title font-mono" id="chartTitle">BTC / USD</h3>
+                    <span id="dataSourceBadge" style="font-size:0.6rem; color:#333; border:1px solid #222; padding:2px 6px; border-radius:4px;">Loading...</span>
+                </div>
+                <div class="chart-controls">
+                    <button class="chart-btn" onclick="loadChart('7')">7D</button>
+                    <button class="chart-btn" onclick="loadChart('30')">30D</button>
+                    <button class="chart-btn" onclick="loadChart('90')">90D</button>
+                </div>
+            </div>
+            <div id="tvChart" class="chart-box"></div>
+            <div id="chartError" class="chart-error">Gagal memuat data historis.</div>
+        </div>
+
+        <!-- KOLOM KANAN BAWAH: KALKULATOR -->
+        <div class="calculator-side">
+            <div class="input-group">
+                <label>Amount</label>
+                <input type="number" id="amount" value="1" min="0" step="any">
+            </div>
+
+            <div class="input-group">
+                <label>Asset</label>
+                <select id="crypto">
+                    <option value="bitcoin">Bitcoin (BTC)</option>
+                    <option value="ethereum">Ethereum (ETH)</option>
+                    <option value="tether">Tether (USDT)</option>
+                    <option value="binancecoin">BNB (BNB)</option>
+                    <option value="solana">Solana (SOL)</option>
+                    <option value="ripple">XRP (XRP)</option>
+                    <option value="usd-coin">USD Coin (USDC)</option>
+                    <option value="cardano">Cardano (ADA)</option>
+                    <option value="dogecoin">Dogecoin (DOGE)</option>
+                    <option value="tron">TRON (TRX)</option>
+                    <option value="avalanche-2">Avalanche (AVAX)</option>
+                    <option value="polkadot">Polkadot (DOT)</option>
+                    <option value="chainlink">Chainlink (LINK)</option>
+                    <option value="toncoin">Toncoin (TON)</option>
+                    <option value="shiba-inu">Shiba Inu (SHIB)</option>
+                    <option value="litecoin">Litecoin (LTC)</option>
+                    <option value="uniswap">Uniswap (UNI)</option>
+                    <option value="stellar">Stellar (XLM)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Currency</label>
+                <select id="fiat">
+                    <option value="usd">US Dollar (USD)</option>
+                    <option value="idr">Rupiah Indonesia (IDR)</option>
+                    <option value="eur">Euro (EUR)</option>
+                    <option value="gbp">British Pound (GBP)</option>
+                    <option value="jpy">Japanese Yen (JPY)</option>
+                    <option value="cny">Chinese Yuan (CNY)</option>
+                    <option value="krw">South Korean Won (KRW)</option>
+                    <option value="inr">Indian Rupee (INR)</option>
+                    <option value="aud">Australian Dollar (AUD)</option>
+                    <option value="sgd">Singapore Dollar (SGD)</option>
+                    <option value="myr">Malaysian Ringgit (MYR)</option>
+                </select>
+            </div>
+
+            <button class="btn-calculate" id="calcBtn" onclick="calculateCrypto()">Calculate Value</button>
+
+            <div class="result-container" id="resultBox">
+                <div class="result-label">Estimated Value</div>
+                <div class="result-amount font-mono" id="resultAmount"></div>
+                <div class="result-detail font-mono" id="resultDetail"></div>
+            </div>
+        </div>
+
+        <!-- ARTIKEL -->
+        <div class="content-section">
+            <div>
+                <p>Sebelum nebak-nebak masuk ke dunia crypto, ada satu langkah krusial yang sering banget kelewat: menghitung konversinya. Ini penting banget karena harga aset crypto umumnya patokannya pakai dolar AS, sementara kita pakai rupiah. Kalau kita asal beli tanpa ngecek nilai tukar dan biaya konversi di marketplace, bisa-bisa angka untung di layar cuma ilusi.</p>
+            </div>
+            <div>
+                <p>Dengan menghitung konversi matang-matang sebelum deposit atau swap koin, kita jadi lebih sadar berapa nilai uang asli yang keluar dan terhindar dari kejutan harga yang nggak sesuai ekspektasi. Lebih dari itu, kebiasaan menghitung konversi ini juga bantu banget dalam manajemen risiko dan nentuin strategi take profit yang rasional.</p>
+            </div>
+        </div>
+
+        <footer>&copy; 2026 Token Live Index. Engineered for precision.</footer>
     </div>
 
-    <!-- INI CONTOH KONTEN ARTIKEL UNTUK MENGELOH GOOGLE ADSENSE -->
-    <!-- Nanti kamu bisa ganti ini dengan artikel hasil AI + Editanmu -->
-    <div class="content-section">
-        <h2>Apa Itu Token Live Index?</h2>
-        <p>Sebelum nebak-nebak masuk ke dunia crypto, ada satu langkah krusial yang sering banget kelewat: menghitung konversinya. Ini penting banget karena harga aset crypto umumnya patokannya pakai dolar AS, sementara kita pakai rupiah. Kalau kita asal beli tanpa ngecek nilai tukar dan biaya konversi di marketplace, bisa-bisa angka untung di layar cuma ilusi. Selisih kurs atau biaya spread yang nyelip bisa bikin saldo yang kita kira nambah, ternyata malah berkurang. Dengan menghitung konversi matang-matang sebelum deposit atau swap koin, kita jadi lebih sadar berapa nilai uang asli yang keluar dan terhindar dari kejutan harga yang nggak sesuai ekspektasi. Lebih dari itu, kebiasaan menghitung konversi ini juga bantu banget dalam manajemen risiko dan nentuin strategi. Kita jadi nggak cuma tergiur koin yang harganya lagi meroket, tapi juga memperhitungkan biaya gas, slippage, atau potongan biaya transaksi yang bikin modal makin besar. Dari situ, kita bisa nentuin titik take profit dan cut loss yang lebih realistis dan rasional sesuai modal awal. Pada akhirnya, investasi crypto memang nyerempet-nyerempet spekulasi, tapi tetap butuh kalkulasi yang waras. Mending luangkan waktu beberapa menit buat bikin hitungan yang pas, daripada nantinya panik dan rugi cuma gara-gara salah perkiraan nilai uang kita sendiri.</p>
-        <p style="margin-top:15px;">Memahami nilai tukar aset digital terhadap fiat sangat penting untuk manajemen portofolio. Gunakan alat ini sebagai referensi cepat sebelum Anda mengambil keputusan transaksi di exchange favorit Anda.</p>
-    </div>
-</div>
+    <script>
+        let chart = null;
+        let chartSeries = null;
+        let currentCrypto = 'bitcoin';
+        let currentDays = '7';
 
-<!-- LOGIKA JAVASCRIPT UNTUK HUBUNGKE KE PYTHON -->
-<script>
-    function calculateCrypto() {
-        const amount = document.getElementById('amount').value;
-        const crypto = document.getElementById('crypto').value;
-        const fiat = document.getElementById('fiat').value;
-        const resultBox = document.getElementById('resultBox');
-        const resultAmount = document.getElementById('resultAmount');
-        const resultDetail = document.getElementById('resultDetail');
-
-        // Tampilkan loading
-        resultBox.style.display = 'block';
-        resultAmount.innerHTML = "Mengambil data...";
-        resultDetail.innerHTML = "";
-
-        // Mengirim permintaan ke backend Python
-        fetch(`/api/convert?amount=${amount}&crypto=${crypto}&fiat=${fiat}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    resultAmount.innerHTML = `${data.total.toLocaleString()} ${data.fiat}`;
-                    
-                    // Format angka agar ada titik ribuan
-                    let priceFormatted = data.price.toLocaleString();
-                    resultDetail.innerHTML = `Harga 1 ${crypto} = ${priceFormatted} ${data.fiat}`;
-                } else {
-                    resultAmount.innerHTML = "Error";
-                    resultDetail.innerHTML = data.message;
-                }
-            })
-            .catch(error => {
-                resultAmount.innerHTML = "Gagal menghubungi server lokal";
+        document.addEventListener("DOMContentLoaded", () => {
+            const chartContainer = document.getElementById('tvChart');
+            
+            chart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: 300,
+                layout: { background: { type: LightweightCharts.ColorType.Solid, color: 'transparent' }, textColor: '#525252', fontSize: 12 },
+                grid: { vertLines: { color: 'rgba(255, 255, 255, 0.03)' }, horzLines: { color: 'rgba(255, 255, 255, 0.03)' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
             });
-    }
-</script>
 
+            chartSeries = chart.addAreaSeries({
+                lineColor: '#10b981',
+                topColor: 'rgba(16, 185, 129, 0.2)',
+                bottomColor: 'rgba(16, 185, 129, 0.0)',
+                lineWidth: 2,
+            });
+
+            window.addEventListener('resize', () => { chart.applyOptions({ width: chartContainer.clientWidth }); });
+            loadChart('7');
+        });
+
+        function loadChart(days) {
+            currentDays = days;
+            document.querySelectorAll('.chart-btn').forEach(btn => { btn.classList.remove('active'); if(btn.innerText.replace('D','') === days) btn.classList.add('active'); });
+
+            const cryptoSelect = document.getElementById('crypto');
+            const cryptoText = cryptoSelect.options[cryptoSelect.selectedIndex].text;
+            currentCrypto = cryptoSelect.value;
+            
+            const fiatSelect = document.getElementById('fiat');
+            const currentFiat = fiatSelect.value;
+            const fiatText = fiatSelect.options[fiatSelect.selectedIndex].text.split(' ')[0];
+            
+            document.getElementById('chartTitle').innerText = `${cryptoText.split(' (')[0]} / ${fiatText}`;
+
+            fetch(`/api/chart?crypto=${currentCrypto}&days=${days}&fiat=${currentFiat}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        document.getElementById('chartError').style.display = 'none';
+                        document.getElementById('dataSourceBadge').innerText = "Source: " + (data.source || "API");
+                        chartSeries.setData(data.data);
+                        chart.timeScale().fitContent();
+                    } else {
+                        document.getElementById('chartError').style.display = 'block';
+                        document.getElementById('dataSourceBadge').innerText = "Error";
+                    }
+                })
+                .catch(error => { 
+                    document.getElementById('chartError').style.display = 'block';
+                    document.getElementById('dataSourceBadge').innerText = "Offline";
+                });
+        }
+
+        document.getElementById('crypto').addEventListener('change', () => { loadChart(currentDays); });
+        document.getElementById('fiat').addEventListener('change', () => { loadChart(currentDays); });
+
+        function calculateCrypto() {
+            const amount = document.getElementById('amount').value;
+            const crypto = document.getElementById('crypto').value;
+            const fiat = document.getElementById('fiat').value;
+            const resultBox = document.getElementById('resultBox');
+            const resultAmount = document.getElementById('resultAmount');
+            const resultDetail = document.getElementById('resultDetail');
+            const btn = document.getElementById('calcBtn');
+
+            resultBox.classList.remove('show');
+            btn.classList.add('loading');
+            btn.innerHTML = "Syncing...";
+
+            fetch(`/api/convert?amount=${amount}&crypto=${crypto}&fiat=${fiat}`)
+                .then(response => response.json())
+                .then(data => {
+                    btn.classList.remove('loading');
+                    btn.innerHTML = "Calculate Value";
+                    if (data.status === "success") {
+                        let totalFormatted = data.total.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                        let priceFormatted = data.price.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                        resultAmount.innerHTML = `${totalFormatted} <span style="font-size:1.2rem; color:#525252;">${data.fiat}</span>`;
+                        resultDetail.innerHTML = `1 ${crypto.toUpperCase()} = ${priceFormatted} ${data.fiat.toUpperCase()}`;
+                        setTimeout(() => resultBox.classList.add('show'), 50);
+                    } else { alert("Sync Failed: " + data.message); }
+                })
+                .catch(error => { btn.classList.remove('loading'); btn.innerHTML = "Calculate Value"; alert("Connection terminated."); });
+        }
+    </script>
 </body>
 </html>
