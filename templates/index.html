@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Token Live Index - Master Aurora UI</title>
-    
+    <title>Token Live Index</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
 
-    <!-- DIPAKSA VERSI 3.8.0 AGAR TIDAK ERROR -->
     <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 
     <style>
@@ -27,7 +26,7 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-base);
@@ -75,13 +74,29 @@
             position: sticky; top: 0; z-index: 100;
         }
 
+        .nav-left { display: flex; align-items: center; gap: 24px; }
         .logo-wrapper { display: flex; align-items: center; gap: 12px; }
         .status-dot { width: 8px; height: 8px; background-color: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent-glow); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .logo { font-size: 1rem; font-weight: 600; letter-spacing: -0.5px; color: #d4d4d4; }
 
-        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; font-weight: 500; margin-left: 32px; transition: color 0.2s ease; }
+        .nav-right { display: flex; align-items: center; gap: 8px; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; font-weight: 500; margin-left: 20px; transition: color 0.2s ease; }
         .nav-links a:hover { color: #fff; }
+
+        .lang-switch {
+            display: flex; align-items: center;
+            background: rgba(17, 17, 17, 0.8); border: 1px solid var(--border-subtle);
+            border-radius: 8px; overflow: hidden; margin-left: 20px;
+        }
+        .lang-btn {
+            padding: 6px 12px; font-size: 0.7rem; font-weight: 600;
+            font-family: 'Space Grotesk', monospace; letter-spacing: 0.5px;
+            border: none; background: transparent; color: #404040;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .lang-btn.active { background: var(--accent); color: #000; }
+        .lang-btn:hover:not(.active) { color: #a3a3a3; }
 
         .container {
             max-width: 900px;
@@ -93,13 +108,9 @@
         }
 
         .hero-side {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding-right: 20px;
-            grid-row: 1 / 3;
+            display: flex; flex-direction: column; justify-content: center;
+            padding-right: 20px; grid-row: 1 / 3;
         }
-
         .hero-side h1 { font-size: 3.5rem; font-weight: 700; line-height: 1; letter-spacing: -2px; margin-bottom: 24px; background: linear-gradient(to bottom, #ffffff, #a3a3a3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .hero-side p { font-size: 1rem; line-height: 1.7; color: #737373; font-weight: 400; border-left: 2px solid var(--accent); padding-left: 20px; }
 
@@ -108,7 +119,6 @@
             border: 1px solid var(--border-subtle); border-radius: var(--radius);
             padding: 24px; display: flex; flex-direction: column; gap: 16px;
         }
-
         .chart-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .chart-title { font-size: 1.1rem; font-weight: 600; color: #a3a3a3; }
         .chart-controls { display: flex; gap: 8px; }
@@ -160,6 +170,7 @@
             .hero-side h1 { font-size: 2.5rem; }
             .content-section { grid-template-columns: 1fr; }
             .ambient-light { filter: blur(80px); transform: scale(0.7); }
+            .nav-links a { margin-left: 12px; font-size: 0.7rem; }
         }
     </style>
 </head>
@@ -171,26 +182,35 @@
     <div class="ambient-light light-4"></div>
 
     <nav>
-        <div class="logo-wrapper">
-            <div class="status-dot"></div>
-            <div class="logo">TokenLiveIndex</div>
+        <div class="nav-left">
+            <div class="logo-wrapper">
+                <div class="status-dot"></div>
+                <div class="logo">TokenLiveIndex</div>
+            </div>
         </div>
-        <div class="nav-links">
-            <a href="/">Home</a>
-            <a href="/about">About</a>
-            <a href="/privacy">Privacy</a>
+        <div class="nav-right">
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/prediction" data-i18n="nav_prediction">Prediction</a>
+                <a href="/patterns">Patterns</a>
+                <a href="/ai-prediction" data-i18n="nav_ai">AI Predict</a>
+                <a href="/about" data-i18n="nav_about">About</a>
+                <a href="/privacy" data-i18n="nav_privacy">Privacy</a>
+            </div>
+            <div class="lang-switch">
+                <button class="lang-btn" id="btnEn" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" id="btnId" onclick="setLang('id')">ID</button>
+            </div>
         </div>
     </nav>
 
     <div class="container">
-        
-        <!-- KOLOM KIRI: TEKS -->
+
         <div class="hero-side">
-            <h1>Convert Crypto.<br>Instantly.</h1>
-            <p>Precision valuation tools for the decentralized economy. Real-time data aggregation with zero latency interface.</p>
+            <h1 data-i18n="hero_title">Convert Crypto.<br>Instantly.</h1>
+            <p data-i18n="hero_desc">Precision valuation tools for the decentralized economy. Real-time data aggregation with zero-latency interface and multi-source fallback redundancy.</p>
         </div>
 
-        <!-- KOLOM KANAN ATAS: GRAFIK -->
         <div class="chart-container">
             <div class="chart-header">
                 <div style="display:flex; align-items:center; gap:12px;">
@@ -204,18 +224,17 @@
                 </div>
             </div>
             <div id="tvChart" class="chart-box"></div>
-            <div id="chartError" class="chart-error">Gagal memuat data historis.</div>
+            <div class="chart-error" id="chartError" data-i18n="chart_error">Failed to load historical data.</div>
         </div>
 
-        <!-- KOLOM KANAN BAWAH: KALKULATOR -->
         <div class="calculator-side">
             <div class="input-group">
-                <label>Amount</label>
+                <label data-i18n="label_amount">Amount</label>
                 <input type="number" id="amount" value="1" min="0" step="any">
             </div>
 
             <div class="input-group">
-                <label>Asset</label>
+                <label data-i18n="label_asset">Asset</label>
                 <select id="crypto">
                     <option value="bitcoin">Bitcoin (BTC)</option>
                     <option value="ethereum">Ethereum (ETH)</option>
@@ -239,10 +258,10 @@
             </div>
 
             <div class="input-group">
-                <label>Currency</label>
+                <label data-i18n="label_currency">Currency</label>
                 <select id="fiat">
                     <option value="usd">US Dollar (USD)</option>
-                    <option value="idr">Rupiah Indonesia (IDR)</option>
+                    <option value="idr">Indonesian Rupiah (IDR)</option>
                     <option value="eur">Euro (EUR)</option>
                     <option value="gbp">British Pound (GBP)</option>
                     <option value="jpy">Japanese Yen (JPY)</option>
@@ -255,22 +274,21 @@
                 </select>
             </div>
 
-            <button class="btn-calculate" id="calcBtn" onclick="calculateCrypto()">Calculate Value</button>
+            <button class="btn-calculate" id="calcBtn" onclick="calculateCrypto()" data-i18n="btn_calculate">Calculate Value</button>
 
             <div class="result-container" id="resultBox">
-                <div class="result-label">Estimated Value</div>
+                <div class="result-label" data-i18n="result_label">Estimated Value</div>
                 <div class="result-amount font-mono" id="resultAmount"></div>
                 <div class="result-detail font-mono" id="resultDetail"></div>
             </div>
         </div>
 
-        <!-- ARTIKEL -->
         <div class="content-section">
             <div>
-                <p>Sebelum nebak-nebak masuk ke dunia crypto, ada satu langkah krusial yang sering banget kelewat: menghitung konversinya. Ini penting banget karena harga aset crypto umumnya patokannya pakai dolar AS, sementara kita pakai rupiah. Kalau kita asal beli tanpa ngecek nilai tukar dan biaya konversi di marketplace, bisa-bisa angka untung di layar cuma ilusi.</p>
+                <p data-i18n="article_left">Crypto assets are natively priced in US dollars, but that doesn't mean your portfolio value should be a guessing game. Whether you're wiring funds from a local bank or settling profits in your home currency, the gap between on-screen numbers and actual fiat value can be deceiving. Slippage, spread, and stale exchange rates quietly eat into returns if left unchecked.</p>
             </div>
             <div>
-                <p>Dengan menghitung konversi matang-matang sebelum deposit atau swap koin, kita jadi lebih sadar berapa nilai uang asli yang keluar dan terhindar dari kejutan harga yang nggak sesuai ekspektasi. Lebih dari itu, kebiasaan menghitung konversi ini juga bantu banget dalam manajemen risiko dan nentuin strategi take profit yang rasional.</p>
+                <p data-i18n="article_right">That's exactly why this converter exists — not just to show a number, but to ground your decisions in real arithmetic. Every calculation here pulls live rates from multiple independent sources with automatic failover. No hidden markups, no delayed quotes. Just the raw, verified conversion you need before committing capital.</p>
             </div>
         </div>
 
@@ -278,14 +296,86 @@
     </div>
 
     <script>
+        /* =========================================
+           LANGUAGE SYSTEM
+        ========================================= */
+        const i18n = {
+            en: {
+                nav_prediction: "Prediction",
+                nav_ai: "AI Predict",
+                nav_about: "About",
+                nav_privacy: "Privacy",
+                hero_title: "Convert Crypto.<br>Instantly.",
+                hero_desc: "Precision valuation tools for the decentralized economy. Real-time data aggregation with zero-latency interface and multi-source fallback redundancy.",
+                label_amount: "Amount",
+                label_asset: "Asset",
+                label_currency: "Currency",
+                btn_calculate: "Calculate Value",
+                btn_syncing: "Syncing...",
+                result_label: "Estimated Value",
+                chart_error: "Failed to load historical data.",
+                article_left: "Crypto assets are natively priced in US dollars, but that doesn't mean your portfolio value should be a guessing game. Whether you're wiring funds from a local bank or settling profits in your home currency, the gap between on-screen numbers and actual fiat value can be deceiving. Slippage, spread, and stale exchange rates quietly eat into returns if left unchecked.",
+                article_right: "That's exactly why this converter exists — not just to show a number, but to ground your decisions in real arithmetic. Every calculation here pulls live rates from multiple independent sources with automatic failover. No hidden markups, no delayed quotes. Just the raw, verified conversion you need before committing capital.",
+                alert_fail: "Sync Failed: ",
+                alert_offline: "Connection terminated."
+            },
+            id: {
+                nav_prediction: "Prediksi",
+                nav_ai: "AI Prediksi",
+                nav_about: "Tentang",
+                nav_privacy: "Privasi",
+                hero_title: "Konversi Crypto.<br>Instan.",
+                hero_desc: "Alat valuasi presisi untuk ekonomi terdesentralisasi. Agregasi data real-time dengan antarmuka nol-latensi dan redundansi fallback multi-sumber.",
+                label_amount: "Jumlah",
+                label_asset: "Aset",
+                label_currency: "Mata Uang",
+                btn_calculate: "Hitung Nilai",
+                btn_syncing: "Sinkronisasi...",
+                result_label: "Perkiraan Nilai",
+                chart_error: "Gagal memuat data historis.",
+                article_left: "Aset crypto dinatifikasikan dalam dolar AS, tapi itu bukan berarti nilai portofolio kamu harus jadi tebakan. Baik kamu mengirim dana dari bank lokal atau mencairkan profit dalam mata uang sendiri, celah antara angka di layar dan nilai fiat sebenarnya bisa menipu. Slippage, spread, dan kurs yang basi perlahan menggerogoti keuntungan kalau dibiarkan.",
+                article_right: "Itulah tepatnya kenapa konverter ini ada — bukan sekadar menampilkan angka, tapi meng-grounding keputusan kamu dalam aritmatika nyata. Setiap kalkulasi di sini menarik kurs langsung dari beberapa sumber independen dengan failover otomatis. Tanpa markup tersembunyi, tanpa kuota tertunda. Hanya konversi mentah dan terverifikasi yang kamu butuhkan sebelum commit modal.",
+                alert_fail: "Gagal Sinkronisasi: ",
+                alert_offline: "Koneksi terputus."
+            }
+        };
+
+        let currentLang = localStorage.getItem('tli_lang') || 'en';
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('tli_lang', lang);
+            document.documentElement.lang = lang;
+
+            document.getElementById('btnEn').classList.toggle('active', lang === 'en');
+            document.getElementById('btnId').classList.toggle('active', lang === 'id');
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.innerHTML = i18n[lang][key];
+                }
+            });
+
+            const btn = document.getElementById('calcBtn');
+            if (!btn.classList.contains('loading')) {
+                btn.innerHTML = i18n[lang].btn_calculate;
+            }
+        }
+
+        /* =========================================
+           CHART SYSTEM
+        ========================================= */
         let chart = null;
         let chartSeries = null;
         let currentCrypto = 'bitcoin';
         let currentDays = '7';
 
         document.addEventListener("DOMContentLoaded", () => {
+            setLang(currentLang);
+
             const chartContainer = document.getElementById('tvChart');
-            
+
             chart = LightweightCharts.createChart(chartContainer, {
                 width: chartContainer.clientWidth,
                 height: 300,
@@ -314,14 +404,14 @@
             const cryptoSelect = document.getElementById('crypto');
             const cryptoText = cryptoSelect.options[cryptoSelect.selectedIndex].text;
             currentCrypto = cryptoSelect.value;
-            
+
             const fiatSelect = document.getElementById('fiat');
             const currentFiat = fiatSelect.value;
             const fiatText = fiatSelect.options[fiatSelect.selectedIndex].text.split(' ')[0];
-            
+
             document.getElementById('chartTitle').innerText = `${cryptoText.split(' (')[0]} / ${fiatText}`;
 
-            fetch(`/api/chart?crypto=${currentCrypto}&days=${days}&fiat=${currentFiat}`)
+            fetch(`/api/chart?crypto_id=${currentCrypto}&days=${days}&fiat_currency=${currentFiat}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === "success") {
@@ -334,7 +424,7 @@
                         document.getElementById('dataSourceBadge').innerText = "Error";
                     }
                 })
-                .catch(error => { 
+                .catch(error => {
                     document.getElementById('chartError').style.display = 'block';
                     document.getElementById('dataSourceBadge').innerText = "Offline";
                 });
@@ -343,6 +433,9 @@
         document.getElementById('crypto').addEventListener('change', () => { loadChart(currentDays); });
         document.getElementById('fiat').addEventListener('change', () => { loadChart(currentDays); });
 
+        /* =========================================
+           CONVERTER
+        ========================================= */
         function calculateCrypto() {
             const amount = document.getElementById('amount').value;
             const crypto = document.getElementById('crypto').value;
@@ -354,22 +447,22 @@
 
             resultBox.classList.remove('show');
             btn.classList.add('loading');
-            btn.innerHTML = "Syncing...";
+            btn.innerHTML = i18n[currentLang].btn_syncing;
 
-            fetch(`/api/convert?amount=${amount}&crypto=${crypto}&fiat=${fiat}`)
+            fetch(`/api/convert?amount=${amount}&crypto_id=${crypto}&fiat_currency=${fiat}`)
                 .then(response => response.json())
                 .then(data => {
                     btn.classList.remove('loading');
-                    btn.innerHTML = "Calculate Value";
+                    btn.innerHTML = i18n[currentLang].btn_calculate;
                     if (data.status === "success") {
                         let totalFormatted = data.total.toLocaleString('en-US', { minimumFractionDigits: 2 });
                         let priceFormatted = data.price.toLocaleString('en-US', { minimumFractionDigits: 2 });
                         resultAmount.innerHTML = `${totalFormatted} <span style="font-size:1.2rem; color:#525252;">${data.fiat}</span>`;
                         resultDetail.innerHTML = `1 ${crypto.toUpperCase()} = ${priceFormatted} ${data.fiat.toUpperCase()}`;
                         setTimeout(() => resultBox.classList.add('show'), 50);
-                    } else { alert("Sync Failed: " + data.message); }
+                    } else { alert(i18n[currentLang].alert_fail + data.message); }
                 })
-                .catch(error => { btn.classList.remove('loading'); btn.innerHTML = "Calculate Value"; alert("Connection terminated."); });
+                .catch(error => { btn.classList.remove('loading'); btn.innerHTML = i18n[currentLang].btn_calculate; alert(i18n[currentLang].alert_offline); });
         }
     </script>
 </body>

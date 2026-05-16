@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Token Live Index</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-base: #050505; --bg-surface: #0a0a0a; --bg-elevated: #111111; --accent: #10b981; --accent-dim: rgba(16, 185, 129, 0.1); --accent-glow: rgba(16, 185, 129, 0.4); --text-main: #e5e5e5; --text-muted: #525252; --border-subtle: rgba(255, 255, 255, 0.05); --radius: 16px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-main); min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        body::before { content: ""; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: 0.03; pointer-events: none; z-index: 9999; }
+        .ambient-light { position: fixed; border-radius: 50%; filter: blur(120px); z-index: -1; mix-blend-mode: screen; pointer-events: none; }
+        .light-1 { width: 600px; height: 600px; background: rgba(16, 185, 129, 0.15); top: -20%; left: -10%; animation: mf1 25s ease-in-out infinite; }
+        .light-2 { width: 500px; height: 500px; background: rgba(139, 92, 246, 0.12); bottom: -20%; right: -10%; animation: mf2 30s ease-in-out infinite; }
+        @keyframes mf1 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30vw, 20vh) scale(1.1); } 66% { transform: translate(10vw, 60vh) scale(0.9); } }
+        @keyframes mf2 { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(-40vw, -30vh) scale(1.2); } 66% { transform: translate(-20vw, 10vh) scale(0.8); } }
+        h1, h2, h3, p, span, a { font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+        .font-mono { font-family: 'Space Grotesk', monospace; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 5%; border-bottom: 1px solid var(--border-subtle); background: rgba(5, 5, 5, 0.6); backdrop-filter: blur(24px) saturate(180%); position: sticky; top: 0; z-index: 100; }
+        .nav-left { display: flex; align-items: center; gap: 24px; }
+        .logo-wrapper { display: flex; align-items: center; gap: 12px; }
+        .status-dot { width: 8px; height: 8px; background-color: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent-glow); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .logo { font-size: 1rem; font-weight: 600; letter-spacing: -0.5px; color: #d4d4d4; }
+        .nav-right { display: flex; align-items: center; gap: 8px; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.8rem; font-weight: 500; margin-left: 20px; transition: color 0.2s ease; }
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+        .lang-switch { display: flex; align-items: center; background: rgba(17, 17, 17, 0.8); border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; margin-left: 20px; }
+        .lang-btn { padding: 6px 12px; font-size: 0.7rem; font-weight: 600; font-family: 'Space Grotesk', monospace; border: none; background: transparent; color: #404040; cursor: pointer; transition: all 0.2s ease; }
+        .lang-btn.active { background: var(--accent); color: #000; }
+        .lang-btn:hover:not(.active) { color: #a3a3a3; }
+        .page-wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+        .hero-section { padding: 72px 0 48px; display: flex; flex-direction: column; gap: 14px; }
+        .hero-section .tag { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+        .hero-section .tag::before { content: ''; width: 20px; height: 1px; background: var(--accent); }
+        .hero-section h1 { font-size: 3rem; font-weight: 700; line-height: 1.05; letter-spacing: -2px; background: linear-gradient(to bottom, #ffffff, #a3a3a3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .content-section { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 60px; }
+        .panel { background: rgba(10, 10, 10, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 28px; position: relative; overflow: hidden; }
+        .panel::before { content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-glow), transparent); opacity: 0.3; }
+        .panel.full { grid-column: 1 / -1; }
+        .panel-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: #404040; margin-bottom: 16px; }
+        .panel h3 { font-size: 1.1rem; font-weight: 600; color: #a3a3a3; margin-bottom: 12px; letter-spacing: -0.3px; }
+        .panel p { font-size: 0.88rem; color: #525252; line-height: 1.8; }
+        .panel p strong { color: #737373; }
+        footer { text-align: center; font-size: 0.7rem; color: #262626; padding: 0 24px 48px; }
+        @media (max-width: 768px) { .hero-section h1 { font-size: 2.2rem; } .content-section { grid-template-columns: 1fr; } .ambient-light { filter: blur(80px); transform: scale(0.7); } }
+    </style>
+</head>
+<body>
+    <div class="ambient-light light-1"></div><div class="ambient-light light-2"></div>
+    <nav>
+        <div class="nav-left"><div class="logo-wrapper"><div class="status-dot"></div><div class="logo">TokenLiveIndex</div></div></div>
+        <div class="nav-right">
+            <div class="nav-links">
+                <a href="/" data-i18n="nav_home">Home</a><a href="/prediction" data-i18n="nav_prediction">Prediction</a><a href="/patterns">Patterns</a><a href="/ai-prediction" data-i18n="nav_ai">AI Predict</a><a href="/about" data-i18n="nav_about">About</a><a href="/privacy" class="active" data-i18n="nav_privacy">Privacy</a>
+            </div>
+            <div class="lang-switch"><button class="lang-btn" id="btnEn" onclick="setLang('en')">EN</button><button class="lang-btn" id="btnId" onclick="setLang('id')">ID</button></div>
+        </div>
+    </nav>
+
+    <div class="page-wrap">
+        <div class="hero-section">
+            <div class="tag" data-i18n="hero_tag">Legal</div>
+            <h1 data-i18n="hero_title">Privacy Policy.</h1>
+        </div>
+
+        <div class="content-section">
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_info">Information We Collect</div>
+                <p data-i18n="txt_info"><strong>Minimal Data Principle:</strong> Token Live Index does not require user registration, login, or personal identity verification. We do not collect names, email addresses, phone numbers, or payment information. Our platform functions entirely as a public data visualization tool.</p>
+            </div>
+
+            <div class="panel">
+                <div class="panel-label" data-i18n="lbl_auto">Automatically Collected Data</div>
+                <p data-i18n="txt_auto">When you visit our platform, standard web server logs may temporarily record your IP address, browser type, referring URL, and the time of access. This data is used solely for system security, DDoS protection, and server performance optimization. We do not sell, share, or use this data for marketing purposes.</p>
+            </div>
+
+            <div class="panel">
+                <div class="panel-label" data-i18n="lbl_local">Local Storage Data</div>
+                <p data-i18n="txt_local">To improve your experience, we use browser local storage to remember your language preference (English/Indonesian) and any analysis drafts you create in the AI Prediction section. This data is stored exclusively on your device and is never transmitted to our servers or third parties. Clearing your browser data will permanently delete this information.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_third">Third-Party Services</div>
+                <p data-i18n="txt_third"><strong>API Providers:</strong> We fetch cryptocurrency market data from CoinGecko, CoinCap, Binance, and Alternative.me. These services may log requests according to their own privacy policies. We transmit only the asset identifier (e.g., "bitcoin") and do not share your personal data with them.<br><br><strong>Hosting:</strong> This platform is hosted on Render.com. Render may collect infrastructure-level data as outlined in their privacy policy.<br><br><strong>Analytics/Ads:</strong> If we integrate third-party analytics or advertising services (such as Google Analytics or Google AdSense) in the future, these services may use cookies to serve relevant content. You can manage cookie preferences through your browser settings.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_cookies">Cookies</div>
+                <p data-i18n="txt_cookies">Token Live Index does not use first-party tracking cookies. We do not use cookies for advertising, user profiling, or retargeting. If third-party services like AdSense are active on the page, they may set their own cookies subject to their respective policies. You may disable cookies in your browser settings without affecting the core functionality of this platform.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_security">Data Security</div>
+                <p data-i18n="txt_security">We implement standard industry practices to protect against unauthorized access. Our backend API requests are stateless, and we do not store user financial data, private keys, or wallet addresses. However, no method of electronic transmission over the internet is 100% secure. We cannot guarantee absolute security but are committed to maintaining a safe browsing environment.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_children">Children's Privacy</div>
+                <p data-i18n="txt_children">Our platform is not directed at individuals under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us so we can take appropriate action.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_changes">Changes to This Policy</div>
+                <p data-i18n="txt_changes">We may update this Privacy Policy periodically to reflect changes in our practices or legal requirements. Updates will be posted on this page with a revised date. Continued use of the platform after changes constitutes acceptance of the updated policy.</p>
+            </div>
+
+            <div class="panel full">
+                <div class="panel-label" data-i18n="lbl_contact">Contact</div>
+                <p data-i18n="txt_contact">If you have any questions regarding this Privacy Policy, you may reach us through the contact information provided on the About page of this platform.</p>
+            </div>
+        </div>
+
+        <footer>&copy; 2026 Token Live Index. Engineered for precision.</footer>
+    </div>
+
+    <script>
+        const i18n = {
+            en: {
+                nav_home: "Home", nav_prediction: "Prediction", nav_ai: "AI Predict", nav_about: "About", nav_privacy: "Privacy",
+                hero_tag: "Legal", hero_title: "Privacy Policy.",
+                lbl_info: "Information We Collect", txt_info: "<strong>Minimal Data Principle:</strong> Token Live Index does not require user registration, login, or personal identity verification. We do not collect names, email addresses, phone numbers, or payment information. Our platform functions entirely as a public data visualization tool.",
+                lbl_auto: "Automatically Collected Data", txt_auto: "When you visit our platform, standard web server logs may temporarily record your IP address, browser type, referring URL, and the time of access. This data is used solely for system security, DDoS protection, and server performance optimization. We do not sell, share, or use this data for marketing purposes.",
+                lbl_local: "Local Storage Data", txt_local: "To improve your experience, we use browser local storage to remember your language preference (English/Indonesian) and any analysis drafts you create in the AI Prediction section. This data is stored exclusively on your device and is never transmitted to our servers or third parties. Clearing your browser data will permanently delete this information.",
+                lbl_third: "Third-Party Services", txt_third: "<strong>API Providers:</strong> We fetch cryptocurrency market data from CoinGecko, CoinCap, Binance, and Alternative.me. These services may log requests according to their own privacy policies. We transmit only the asset identifier (e.g., \"bitcoin\") and do not share your personal data with them.<br><br><strong>Hosting:</strong> This platform is hosted on Render.com. Render may collect infrastructure-level data as outlined in their privacy policy.<br><br><strong>Analytics/Ads:</strong> If we integrate third-party analytics or advertising services (such as Google Analytics or Google AdSense) in the future, these services may use cookies to serve relevant content. You can manage cookie preferences through your browser settings.",
+                lbl_cookies: "Cookies", txt_cookies: "Token Live Index does not use first-party tracking cookies. We do not use cookies for advertising, user profiling, or retargeting. If third-party services like AdSense are active on the page, they may set their own cookies subject to their respective policies. You may disable cookies in your browser settings without affecting the core functionality of this platform.",
+                lbl_security: "Data Security", txt_security: "We implement standard industry practices to protect against unauthorized access. Our backend API requests are stateless, and we do not store user financial data, private keys, or wallet addresses. However, no method of electronic transmission over the internet is 100% secure. We cannot guarantee absolute security but are committed to maintaining a safe browsing environment.",
+                lbl_children: "Children's Privacy", txt_children: "Our platform is not directed at individuals under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us so we can take appropriate action.",
+                lbl_changes: "Changes to This Policy", txt_changes: "We may update this Privacy Policy periodically to reflect changes in our practices or legal requirements. Updates will be posted on this page with a revised date. Continued use of the platform after changes constitutes acceptance of the updated policy.",
+                lbl_contact: "Contact", txt_contact: "If you have any questions regarding this Privacy Policy, you may reach us through the contact information provided on the About page of this platform."
+            },
+            id: {
+                nav_home: "Beranda", nav_prediction: "Prediksi", nav_ai: "AI Prediksi", nav_about: "Tentang", nav_privacy: "Privasi",
+                hero_tag: "Hukum", hero_title: "Kebijakan Privasi.",
+                lbl_info: "Informasi yang Kami Kumpulkan", txt_info: "<strong>Prinsip Data Minimal:</strong> Token Live Index tidak memerlukan registrasi pengguna, login, atau verifikasi identitas pribadi. Kami tidak mengumpulkan nama, alamat email, nomor telepon, atau informasi pembayaran. Platform kami berfungsi sepenuhnya sebagai alat visualisasi data publik.",
+                lbl_auto: "Data yang Dikumpulkan Secara Otomatis", txt_auto: "Saat Anda mengunjungi platform kami, log server web standar mungkin secara sementara mencatat alamat IP, jenis browser, URL referensi, dan waktu akses. Data ini hanya digunakan untuk keamanan sistem, perlindungan DDoS, dan optimasi performa server. Kami tidak menjual, membagikan, atau menggunakan data ini untuk tujuan pemasaran.",
+                lbl_local: "Data Penyimpanan Lokal", txt_local: "Untuk meningkatkan pengalaman Anda, kami menggunakan penyimpanan lokal browser untuk mengingat preferensi bahasa (Inggris/Indonesia) dan draf analisis yang Anda buat di bagian AI Prediksi. Data ini disimpan secara eksklusif di perangkat Anda dan tidak pernah dikirim ke server kami atau pihak ketiga. Menghapus data browser akan menghapus informasi ini secara permanen.",
+                lbl_third: "Layanan Pihak Ketiga", txt_third: "<strong>Penyedia API:</strong> Kami mengambil data pasar cryptocurrency dari CoinGecko, CoinCap, Binance, dan Alternative.me. Layanan ini mungkin mencatat permintaan sesuai dengan kebijakan privasi mereka sendiri. Kami hanya mengirimkan pengidentifikasi aset (misalnya, \"bitcoin\") dan tidak membagikan data pribadi Anda kepada mereka.<br><br><strong>Hosting:</strong> Platform ini dihosting di Render.com. Render mungkin mengumpulkan data tingkat infrastruktur sesuai dengan kebijakan privasi mereka.<br><br><strong>Analitik/Iklan:</strong> Jika kami mengintegrasikan layanan analitik atau periklanan pihak ketiga (seperti Google Analytics atau Google AdSense) di masa depan, layanan ini mungkin menggunakan cookie untuk menyajikan konten yang relevan. Anda dapat mengelola preferensi cookie melalui pengaturan browser Anda.",
+                lbl_cookies: "Cookies", txt_cookies: "Token Live Index tidak menggunakan cookie pelacakan pihak pertama. Kami tidak menggunakan cookie untuk periklanan, profil pengguna, atau retargeting. Jika layanan pihak ketiga seperti AdSense aktif di halaman, mereka dapat menyetel cookie mereka sendiri sesuai dengan kebijakan masing-masing. Anda dapat menonaktifkan cookie di pengaturan browser Anda tanpa memengaruhi fungsionalitas inti platform ini.",
+                lbl_security: "Keamanan Data", txt_security: "Kami menerapkan praktik industri standar untuk melindungi dari akses tidak sah. Permintaan API backend kami tanpa status, dan kami tidak menyimpan data keuangan pengguna, kunci pribadi, atau alamat dompet. Namun, tidak ada metode transmisi elektronik melalui internet yang 100% aman. Kami tidak dapat menjamin keamanan absolut tetapi berkomitmen untuk menjaga lingkungan browsing yang aman.",
+                lbl_children: "Privasi Anak", txt_children: "Platform kami tidak ditujukan untuk individu di bawah usia 13 tahun. Kami tidak dengan sengaja mengumpulkan informasi pribadi dari anak-anak. Jika Anda percaya bahwa seorang anak telah memberikan data pribadi kepada kami, silakan hubungi kami agar kami dapat mengambil tindakan yang tepat.",
+                lbl_changes: "Perubahan Kebijakan Ini", txt_changes: "Kami mungkin memperbarui Kebijakan Privasi ini secara berkala untuk mencerminkan perubahan dalam praktik atau persyaratan hukum kami. Pembaruan akan diposting di halaman ini dengan tanggal revisi. Penggunaan platform yang berkelanjutan setelah perubahan merupakan penerimaan atas kebijakan yang diperbarui.",
+                lbl_contact: "Kontak", txt_contact: "Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini, Anda dapat menghubungi kami melalui informasi kontak yang disediakan di halaman Tentang platform ini."
+            }
+        };
+        let currentLang = localStorage.getItem('tli_lang') || 'en';
+        function setLang(l) {
+            currentLang = l;
+            localStorage.setItem('tli_lang', l);
+            document.documentElement.lang = l;
+            document.getElementById('btnEn').classList.toggle('active', l === 'en');
+            document.getElementById('btnId').classList.toggle('active', l === 'id');
+            document.querySelectorAll('[data-i18n]').forEach(e => {
+                const k = e.getAttribute('data-i18n');
+                if (i18n[l] && i18n[l][k]) e.innerHTML = i18n[l][k];
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => setLang(currentLang));
+    </script>
+</body>
+</html>
