@@ -23,8 +23,7 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Database
-# [UPDATE] Fix untuk psycopg v3 (Python 3.14 support)
+# Database (Fix untuk psycopg v3 / Python 3.14)
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
@@ -224,6 +223,31 @@ def get_24h_history(crypto_id):
     # 3. Binance
     try:
         symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
+        url_bn = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+        res_bn = requests.get(url_bn, timeout=8).json()
+        if 'price' in res_bn: return float(res_bn['price'])
+    except: pass
+    return None
+
+def get_24h_history(crypto_id):
+    """Fallback 3 lapis untuk mendapatkan data 24 jam"""
+    # 1. CoinGecko
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1"
+        headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
+        res = requests.get(url, headers=headers, timeout=8).json()
+        if 'prices' in res and len(res['prices']) > 4: return res['prices']
+    except: pass
+    # 2. CoinCap
+    try:
+        url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
+        res_cc = requests.get(url_cc, timeout=8).json()
+        if 'data' in res_cc and len(res_cc['data']) > 4:
+            return [[int(item['time']), float(item['priceUsd'])] for item in res_cc['data']]
+    except: pass
+    # 3. Binance
+    try:
+        symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
         url_bn = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=24"
         res_bn = requests.get(url_bn, timeout=8).json()
         if len(res_bn) > 4:
@@ -277,13 +301,12 @@ def update_binance_prices():
         response = requests.get(url_bn, timeout=3)
         if response.status_code == 200:
             data = response.json()
-            # Ubah format list dari Binance jadi Dictionary biar gampang dicari frontend
             price_dict = {item['symbol']: float(item['price']) for item in data}
             cache.set('binance_live_prices', price_dict, timeout=10)
     except Exception as e:
         print(f"Error fetching Binance prices: {e}")
 
-# [UPDATE] Panggil fungsi setelah didefinisikan biar cache awal terisi saat server baru nyala
+# Panggil fungsi setelah didefinisikan biar cache awal terisi saat server baru nyala
 with app.app_context():
     update_binance_prices()
 
@@ -300,7 +323,6 @@ def get_live_prices():
 # ==========================================
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
-# [UPDATE] Tambah job Binance tiap 2 detik
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
