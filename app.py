@@ -23,8 +23,12 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Database SQLite (Untuk AI Predictions)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
+# Database
+# [UPDATE] Fix untuk psycopg v3 (Python 3.14 support)
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -40,9 +44,11 @@ class Prediction(db.Model):
     price_at_result = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(10), default='PENDING') # PENDING, WIN, LOSE
 
-# Buat database jika belum ada
+# Buat database & isi cache awal jika belum ada
 with app.app_context():
     db.create_all()
+    # [UPDATE] Langsung isi cache Binance saat server nyala biar user pertama nggak nunggu
+    update_binance_prices()
 
 # ==========================================
 # 3. HELPER: KONVERSI MATA UANG
@@ -263,13 +269,43 @@ def ai_predict_job():
         db.session.commit()
         print(f"[{now}] AI Prediction Job Completed!")
 
+# ==========================================
+# [UPDATE] 9. REAL-TIME BINANCE 2 DETIK
+# ==========================================
+def update_binance_prices():
+    """Fungsi Scheduler: Ambil semua harga Binance tiap 2 detik"""
+    try:
+        url_bn = "https://api.binance.com/api/v3/ticker/price"
+        response = requests.get(url_bn, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            # Ubah format list dari Binance jadi Dictionary biar gampang dicari frontend
+            # Contoh: {"BTCUSDT": 65000.00, "ETHUSDT": 3400.00}
+            price_dict = {item['symbol']: float(item['price']) for item in data}
+            cache.set('binance_live_prices', price_dict, timeout=10)
+    except Exception as e:
+        print(f"Error fetching Binance prices: {e}")
+
+@app.route('/api/live-prices')
+def get_live_prices():
+    """API untuk Frontend: Ambil data dari Cache super cepat"""
+    prices = cache.get('binance_live_prices')
+    if prices is None:
+        return jsonify({"status": "loading", "message": "Fetching initial data..."}), 503
+    return jsonify({"status": "success", "data": prices})
+
+# ==========================================
+# 10. SCHEDULLER SETUP
+# ==========================================
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
+# [UPDATE] Tambah job Binance tiap 2 detik
+scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 # ==========================================
-# 9. API: AI PREDICTIONS
+# 11. API: AI PREDICTIONS
 # ==========================================
 @app.route('/api/ai-predictions')
 def get_ai_predictions():
@@ -280,7 +316,7 @@ def get_ai_predictions():
     return jsonify({"status": "success", "data": result})
 
 # ==========================================
-# 10. START SERVER
+# 12. START SERVER
 # ==========================================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
