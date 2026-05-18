@@ -69,8 +69,25 @@ def get_exchange_rate(target_fiat):
     return None
 
 # ==========================================
-# 4. API: KALKULATOR, GRAFIK, SENTIMEN, PIVOT
+# 4. HALAMAN UTAMA & API ROUTES
 # ==========================================
+
+# ROUTE UTAMA (Biar domain utama nggak 404 lagi)
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "online",
+        "message": "TokenLiveIndex API is running!",
+        "endpoints": {
+            "live_prices": "/api/live-prices",
+            "chart": "/api/chart",
+            "convert": "/api/convert",
+            "predictions": "/api/ai-predictions",
+            "sentiment": "/api/sentimen",
+            "pivot": "/api/pivot"
+        }
+    })
+
 @app.route('/api/convert', methods=['GET'])
 def convert():
     crypto_id = request.args.get('crypto_id')
