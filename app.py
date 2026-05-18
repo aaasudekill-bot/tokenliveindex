@@ -72,21 +72,10 @@ def get_exchange_rate(target_fiat):
 # 4. HALAMAN UTAMA & API ROUTES
 # ==========================================
 
-# ROUTE UTAMA (Biar domain utama nggak 404 lagi)
+# ROUTE UTAMA (TEST DEPLOY)
 @app.route('/')
 def index():
-    return jsonify({
-        "status": "online",
-        "message": "TokenLiveIndex API is running!",
-        "endpoints": {
-            "live_prices": "/api/live-prices",
-            "chart": "/api/chart",
-            "convert": "/api/convert",
-            "predictions": "/api/ai-predictions",
-            "sentiment": "/api/sentimen",
-            "pivot": "/api/pivot"
-        }
-    })
+    return "HALO INI KODE BARU TANGGAL 18 MEI - API LIVES!"
 
 @app.route('/api/convert', methods=['GET'])
 def convert():
@@ -258,15 +247,18 @@ def update_binance_prices():
     except Exception as e:
         print(f"Error fetching Binance prices: {e}")
 
-# Isi cache awal saat server baru nyala
-with app.app_context():
-    update_binance_prices()
-
+# PINDAHIN AMAN: Cuma manggil API Binance kalau user buka link ini
 @app.route('/api/live-prices')
 def get_live_prices():
     prices = cache.get('binance_live_prices')
     if prices is None:
-        return jsonify({"status": "loading", "message": "Fetching initial data..."}), 503
+        # Kalau cache kosong (baru nyala), ambil langsung sekali
+        update_binance_prices()
+        prices = cache.get('binance_live_prices')
+    
+    if prices is None:
+        return jsonify({"status": "error", "message": "Gagal mengambil data dari Binance"}), 500
+        
     return jsonify({"status": "success", "data": prices})
 
 # ==========================================
