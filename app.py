@@ -44,11 +44,9 @@ class Prediction(db.Model):
     price_at_result = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(10), default='PENDING') # PENDING, WIN, LOSE
 
-# Buat database & isi cache awal jika belum ada
+# Buat database jika belum ada
 with app.app_context():
     db.create_all()
-    # [UPDATE] Langsung isi cache Binance saat server nyala biar user pertama nggak nunggu
-    update_binance_prices()
 
 # ==========================================
 # 3. HELPER: KONVERSI MATA UANG
@@ -270,7 +268,7 @@ def ai_predict_job():
         print(f"[{now}] AI Prediction Job Completed!")
 
 # ==========================================
-# [UPDATE] 9. REAL-TIME BINANCE 2 DETIK
+# 9. REAL-TIME BINANCE 2 DETIK
 # ==========================================
 def update_binance_prices():
     """Fungsi Scheduler: Ambil semua harga Binance tiap 2 detik"""
@@ -280,11 +278,14 @@ def update_binance_prices():
         if response.status_code == 200:
             data = response.json()
             # Ubah format list dari Binance jadi Dictionary biar gampang dicari frontend
-            # Contoh: {"BTCUSDT": 65000.00, "ETHUSDT": 3400.00}
             price_dict = {item['symbol']: float(item['price']) for item in data}
             cache.set('binance_live_prices', price_dict, timeout=10)
     except Exception as e:
         print(f"Error fetching Binance prices: {e}")
+
+# [UPDATE] Panggil fungsi setelah didefinisikan biar cache awal terisi saat server baru nyala
+with app.app_context():
+    update_binance_prices()
 
 @app.route('/api/live-prices')
 def get_live_prices():
