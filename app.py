@@ -15,15 +15,13 @@ app = Flask(__name__)
 # ==========================================
 COINGECKO_API_KEY = "CG-5q1PNRDHjFvyNPyx4RdZjJkb"
 
-# CORS (Wajib agar Next.js bisa meminta data)
 CORS(app)
 
-# Cache
 app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Database (Fix untuk psycopg v3 / Python 3.14)
+# Fix untuk psycopg v3 (Python 3.14 support)
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
@@ -39,17 +37,25 @@ class Prediction(db.Model):
     crypto_id = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     price_at_pred = db.Column(db.Float, nullable=False)
-    prediction = db.Column(db.String(10), nullable=False) # 'UP' atau 'DOWN'
+    prediction = db.Column(db.String(10), nullable=False)
     price_at_result = db.Column(db.Float, nullable=True)
-    status = db.Column(db.String(10), default='PENDING') # PENDING, WIN, LOSE
+    status = db.Column(db.String(10), default='PENDING')
 
-# Buat database jika belum ada
 with app.app_context():
     db.create_all()
 
 # ==========================================
-# 3. HELPER: KONVERSI MATA UANG
+# 3. HELPER & MAPPING
 # ==========================================
+binance_symbol_map = { 
+    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT", "tether": "USDTUSDC", 
+    "binancecoin": "BNBUSDT", "solana": "SOLUSDT", "ripple": "XRPUSDT", 
+    "usd-coin": "USDCUSDT", "cardano": "ADAUSDT", "dogecoin": "DOGEUSDT", 
+    "tron": "TRXUSDT", "avalanche-2": "AVAXUSDT", "polkadot": "DOTUSDT", 
+    "chainlink": "LINKUSDT", "toncoin": "TONUSDT", "shiba-inu": "SHIBUSDT", 
+    "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT" 
+}
+
 def get_exchange_rate(target_fiat):
     if target_fiat == 'usd': return 1.0
     try:
@@ -63,7 +69,7 @@ def get_exchange_rate(target_fiat):
     return None
 
 # ==========================================
-# 4. API: KALKULATOR KONVERSI
+# 4. API: KALKULATOR, GRAFIK, SENTIMEN, PIVOT
 # ==========================================
 @app.route('/api/convert', methods=['GET'])
 def convert():
@@ -72,7 +78,6 @@ def convert():
     amount = request.args.get('amount', '1')
     try: amount = float(amount)
     except ValueError: return jsonify({"status": "error", "message": "Invalid amount"})
-
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies={fiat_currency}"
     headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
     try:
@@ -84,18 +89,6 @@ def convert():
         else: return jsonify({"status": "error", "message": "Asset or currency not recognized"})
     except Exception: return jsonify({"status": "error", "message": "Failed to connect to pricing server"})
 
-# ==========================================
-# 5. API: DATA GRAFIK HISTORIS (3 TIER FALLBACK)
-# ==========================================
-binance_symbol_map = { 
-    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT", "tether": "USDTUSDC", 
-    "binancecoin": "BNBUSDT", "solana": "SOLUSDT", "ripple": "XRPUSDT", 
-    "usd-coin": "USDCUSDT", "cardano": "ADAUSDT", "dogecoin": "DOGEUSDT", 
-    "tron": "TRXUSDT", "avalanche-2": "AVAXUSDT", "polkadot": "DOTUSDT", 
-    "chainlink": "LINKUSDT", "toncoin": "TONUSDT", "shiba-inu": "SHIBUSDT", 
-    "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT" 
-}
-
 @cache.cached(timeout=300, query_string=True)
 @app.route('/api/chart', methods=['GET'])
 def get_chart_data():
@@ -103,8 +96,6 @@ def get_chart_data():
     days = request.args.get('days', '7')
     fiat_currency = request.args.get('fiat_currency', 'usd')
     base_data = None; store_name = ""
-
-    # JALUR 1: COINGECKO
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency={fiat_currency}&days={days}"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
@@ -113,8 +104,6 @@ def get_chart_data():
             data = response.json()
             if 'prices' in data: base_data = [{"time": int(item[0] / 1000), "value": item[1]} for item in data['prices']]; store_name = "coingecko"
     except Exception: pass
-
-    # JALUR 2: FALLBACK COINCAP
     if not base_data:
         try:
             url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
@@ -123,8 +112,6 @@ def get_chart_data():
                 data_cc = response_cc.json()
                 if 'data' in data_cc and len(data_cc['data']) > 0: base_data = [{"time": int(item['time'] / 1000), "value": float(item['priceUsd'])} for item in data_cc['data']]; store_name = "coincap"
         except Exception: pass
-
-    # JALUR 3: FALLBACK BINANCE
     if not base_data:
         limit_map = {"7": 168, "14": 336, "30": 720, "90": 2160}
         try:
@@ -135,20 +122,14 @@ def get_chart_data():
                 data_bn = response_bn.json()
                 if len(data_bn) > 2: base_data = [{"time": int(item[0] / 1000), "value": float(item[4])} for item in data_bn]; store_name = "binance"
         except Exception: pass
-
-    # KONVERSI USD KE MATA UANG LAIN (JIKA DATA DARI FALLBACK)
     if base_data and fiat_currency != 'usd' and store_name != "coingecko":
         rate = get_exchange_rate(fiat_currency)
         if rate:
             for item in base_data: item['value'] = item['value'] * rate
             store_name = f"{store_name} (Converted to {fiat_currency.upper()})"
-
     if base_data: return jsonify({"status": "success", "data": base_data, "source": store_name})
     else: return jsonify({"status": "error", "message": "All data sources failed to load"})
 
-# ==========================================
-# 6. API: MARKET SENTIMEN
-# ==========================================
 @app.route('/api/sentimen')
 def get_sentimen():
     url = "https://api.alternative.me/fng/?limit=30"
@@ -158,9 +139,6 @@ def get_sentimen():
         else: return jsonify({"status": "error", "message": "Sentiment data unavailable"})
     except Exception: return jsonify({"status": "error", "message": "Connection timeout"})
 
-# ==========================================
-# 7. API: PIVOT POINTS
-# ==========================================
 @app.route('/api/pivot')
 def get_pivot_points():
     crypto_id = request.args.get('crypto_id', 'bitcoin')
@@ -176,26 +154,22 @@ def get_pivot_points():
     return jsonify({"status": "error", "message": "Failed to calculate pivot points"})
 
 # ==========================================
-# 8. AI PREDICTION ENGINE & FALLBACK HELPERS
+# 5. AI PREDICTION HELPERS
 # ==========================================
 SUPPORTED_COINS = [ "bitcoin", "ethereum", "tether", "binancecoin", "solana", "ripple", "usd-coin", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar" ]
 
 def get_live_price(crypto_id):
-    """Fallback 3 lapis untuk mendapatkan harga live"""
-    # 1. CoinGecko
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
         res = requests.get(url, headers=headers, timeout=8).json()
         if crypto_id in res and 'usd' in res[crypto_id]: return res[crypto_id]['usd']
     except: pass
-    # 2. CoinCap
     try:
         url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}"
         res_cc = requests.get(url_cc, timeout=8).json()
         if 'data' in res_cc and 'priceUsd' in res_cc['data']: return float(res_cc['data']['priceUsd'])
     except: pass
-    # 3. Binance
     try:
         symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
         url_bn = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
@@ -205,47 +179,18 @@ def get_live_price(crypto_id):
     return None
 
 def get_24h_history(crypto_id):
-    """Fallback 3 lapis untuk mendapatkan data 24 jam"""
-    # 1. CoinGecko
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
         res = requests.get(url, headers=headers, timeout=8).json()
         if 'prices' in res and len(res['prices']) > 4: return res['prices']
     except: pass
-    # 2. CoinCap
     try:
         url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
         res_cc = requests.get(url_cc, timeout=8).json()
         if 'data' in res_cc and len(res_cc['data']) > 4:
             return [[int(item['time']), float(item['priceUsd'])] for item in res_cc['data']]
     except: pass
-    # 3. Binance
-    try:
-        symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
-        url_bn = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-        res_bn = requests.get(url_bn, timeout=8).json()
-        if 'price' in res_bn: return float(res_bn['price'])
-    except: pass
-    return None
-
-def get_24h_history(crypto_id):
-    """Fallback 3 lapis untuk mendapatkan data 24 jam"""
-    # 1. CoinGecko
-    try:
-        url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1"
-        headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
-        res = requests.get(url, headers=headers, timeout=8).json()
-        if 'prices' in res and len(res['prices']) > 4: return res['prices']
-    except: pass
-    # 2. CoinCap
-    try:
-        url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
-        res_cc = requests.get(url_cc, timeout=8).json()
-        if 'data' in res_cc and len(res_cc['data']) > 4:
-            return [[int(item['time']), float(item['priceUsd'])] for item in res_cc['data']]
-    except: pass
-    # 3. Binance
     try:
         symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
         url_bn = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=24"
@@ -256,12 +201,9 @@ def get_24h_history(crypto_id):
     return None
 
 def ai_predict_job():
-    """Fungsi Scheduler: Verifikasi, Hapus Expired, Buat Prediksi Baru"""
     with app.app_context():
         now = datetime.datetime.utcnow()
         one_hour_ago = now - datetime.timedelta(hours=1)
-
-        # 1. CEK PREDIKSI LAMA
         pending_preds = Prediction.query.filter(Prediction.timestamp <= one_hour_ago, Prediction.status == 'PENDING').all()
         for pred in pending_preds:
             current_price = get_live_price(pred.crypto_id)
@@ -271,31 +213,24 @@ def ai_predict_job():
                 elif pred.prediction == 'DOWN' and current_price < pred.price_at_pred: pred.status = 'WIN'
                 else: pred.status = 'LOSE'
                 db.session.commit()
-
-        # 2. HAPUS DATA EXPIRED (24 JAM)
         expired_time = now - datetime.timedelta(hours=24)
         Prediction.query.filter(Prediction.timestamp < expired_time).delete()
         db.session.commit()
-
-        # 3. BUAT PREDIKSI BARU
         for coin in SUPPORTED_COINS:
             history = get_24h_history(coin)
             if history:
                 current_price = history[-1][1]
                 price_4h_ago = history[-4][1] if len(history) > 4 else history[0][1]
                 pred_direction = 'UP' if current_price > price_4h_ago else 'DOWN'
-                
                 new_pred = Prediction(crypto_id=coin, price_at_pred=current_price, prediction=pred_direction)
                 db.session.add(new_pred)
-        
         db.session.commit()
         print(f"[{now}] AI Prediction Job Completed!")
 
 # ==========================================
-# 9. REAL-TIME BINANCE 2 DETIK
+# 6. REAL-TIME BINANCE 2 DETIK
 # ==========================================
 def update_binance_prices():
-    """Fungsi Scheduler: Ambil semua harga Binance tiap 2 detik"""
     try:
         url_bn = "https://api.binance.com/api/v3/ticker/price"
         response = requests.get(url_bn, timeout=3)
@@ -306,20 +241,19 @@ def update_binance_prices():
     except Exception as e:
         print(f"Error fetching Binance prices: {e}")
 
-# Panggil fungsi setelah didefinisikan biar cache awal terisi saat server baru nyala
+# Isi cache awal saat server baru nyala
 with app.app_context():
     update_binance_prices()
 
 @app.route('/api/live-prices')
 def get_live_prices():
-    """API untuk Frontend: Ambil data dari Cache super cepat"""
     prices = cache.get('binance_live_prices')
     if prices is None:
         return jsonify({"status": "loading", "message": "Fetching initial data..."}), 503
     return jsonify({"status": "success", "data": prices})
 
 # ==========================================
-# 10. SCHEDULLER SETUP
+# 7. SCHEDULLER & INIT
 # ==========================================
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
@@ -327,9 +261,6 @@ scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
-# ==========================================
-# 11. API: AI PREDICTIONS
-# ==========================================
 @app.route('/api/ai-predictions')
 def get_ai_predictions():
     predictions = Prediction.query.order_by(Prediction.timestamp.desc()).all()
@@ -338,9 +269,6 @@ def get_ai_predictions():
         result.append({ "crypto_id": p.crypto_id, "timestamp": p.timestamp.isoformat(), "price_at_pred": p.price_at_pred, "prediction": p.prediction, "price_at_result": p.price_at_result, "status": p.status })
     return jsonify({"status": "success", "data": result})
 
-# ==========================================
-# 12. START SERVER
-# ==========================================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
