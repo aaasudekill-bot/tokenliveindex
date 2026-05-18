@@ -56,12 +56,23 @@ binance_symbol_map = {
     "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT" 
 }
 
+# Update: Jalur 1 Open ER API (Cepat & Gratis), Jalur 2 CoinGecko (Cadangan)
 def get_exchange_rate(target_fiat):
     if target_fiat == 'usd': return 1.0
+    # JALUR 1: Open ER API
+    try:
+        url_er = f"https://open.er-api.com/v6/latest/USD"
+        res_er = requests.get(url_er, timeout=3)
+        if res_er.status_code == 200:
+            data_er = res_er.json()
+            if 'rates' in data_er and target_fiat.upper() in data_er['rates']:
+                return data_er['rates'][target_fiat.upper()]
+    except Exception: pass
+    # JALUR 2: FALLBACK COINGECKO
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids=usd&vs_currencies={target_fiat}"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
-        res = requests.get(url, headers=headers, timeout=8)
+        res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
             if 'usd' in data and target_fiat in data['usd']: return data['usd'][target_fiat]
@@ -72,7 +83,6 @@ def get_exchange_rate(target_fiat):
 # 4. HALAMAN UTAMA & API ROUTES
 # ==========================================
 
-# ROUTE UTAMA (TEST DEPLOY)
 @app.route('/')
 def index():
     return "HALO INI KODE BARU TANGGAL 18 MEI - API LIVES!"
@@ -87,7 +97,7 @@ def convert():
     url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies={fiat_currency}"
     headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
     try:
-        response = requests.get(url, headers=headers, timeout=8)
+        response = requests.get(url, headers=headers, timeout=5)
         data = response.json()
         if crypto_id in data and fiat_currency in data[crypto_id]:
             price = data[crypto_id][fiat_currency]
@@ -95,6 +105,7 @@ def convert():
         else: return jsonify({"status": "error", "message": "Asset or currency not recognized"})
     except Exception: return jsonify({"status": "error", "message": "Failed to connect to pricing server"})
 
+# Update: Binance sekarang Jalur 1 (Paling Cepat)
 @cache.cached(timeout=300, query_string=True)
 @app.route('/api/chart', methods=['GET'])
 def get_chart_data():
@@ -102,37 +113,50 @@ def get_chart_data():
     days = request.args.get('days', '7')
     fiat_currency = request.args.get('fiat_currency', 'usd')
     base_data = None; store_name = ""
-    try:
-        url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency={fiat_currency}&days={days}"
-        headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
-        response = requests.get(url, headers=headers, timeout=8)
-        if response.status_code == 200:
-            data = response.json()
-            if 'prices' in data: base_data = [{"time": int(item[0] / 1000), "value": item[1]} for item in data['prices']]; store_name = "coingecko"
-    except Exception: pass
+
+    # JALUR 1: BINANCE (UTAMA KARENA CEPAT)
+    if crypto_id in binance_symbol_map:
+        limit_map = {"1": 24, "7": 168, "14": 336, "30": 720, "90": 2160}
+        try:
+            symbol_bn = binance_symbol_map[crypto_id]
+            limit = limit_map.get(days, 168)
+            url_bn = f"https://api.binance.com/api/v3/klines?symbol={symbol_bn}&interval=1h&limit={limit}"
+            response_bn = requests.get(url_bn, timeout=3)
+            if response_bn.status_code == 200:
+                data_bn = response_bn.json()
+                if len(data_bn) > 2: 
+                    base_data = [{"time": int(item[0] / 1000), "value": float(item[4])} for item in data_bn]
+                    store_name = "binance"
+        except Exception: pass
+
+    # JALUR 2: COINGECKO (CADANGAN, ATAU BUAT KOIN YANG NGGAK ADA DI BINANCE)
+    if not base_data:
+        try:
+            url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency={fiat_currency}&days={days}"
+            headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
+            response = requests.get(url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'prices' in data: base_data = [{"time": int(item[0] / 1000), "value": item[1]} for item in data['prices']]; store_name = "coingecko"
+        except Exception: pass
+
+    # JALUR 3: FALLBACK COINCAP
     if not base_data:
         try:
             url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
-            response_cc = requests.get(url_cc, timeout=8)
+            response_cc = requests.get(url_cc, timeout=3)
             if response_cc.status_code == 200:
                 data_cc = response_cc.json()
                 if 'data' in data_cc and len(data_cc['data']) > 0: base_data = [{"time": int(item['time'] / 1000), "value": float(item['priceUsd'])} for item in data_cc['data']]; store_name = "coincap"
         except Exception: pass
-    if not base_data:
-        limit_map = {"7": 168, "14": 336, "30": 720, "90": 2160}
-        try:
-            symbol_bn = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT"); limit = limit_map.get(days, 168)
-            url_bn = f"https://api.binance.com/api/v3/klines?symbol={symbol_bn}&interval=1h&limit={limit}"
-            response_bn = requests.get(url_bn, timeout=8)
-            if response_bn.status_code == 200:
-                data_bn = response_bn.json()
-                if len(data_bn) > 2: base_data = [{"time": int(item[0] / 1000), "value": float(item[4])} for item in data_bn]; store_name = "binance"
-        except Exception: pass
+
+    # KONVERSI USD KE MATA UANG LAIN (JIKA DATA DARI BINANCE/COINCAP)
     if base_data and fiat_currency != 'usd' and store_name != "coingecko":
         rate = get_exchange_rate(fiat_currency)
         if rate:
             for item in base_data: item['value'] = item['value'] * rate
             store_name = f"{store_name} (Converted to {fiat_currency.upper()})"
+
     if base_data: return jsonify({"status": "success", "data": base_data, "source": store_name})
     else: return jsonify({"status": "error", "message": "All data sources failed to load"})
 
@@ -168,18 +192,18 @@ def get_live_price(crypto_id):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
-        res = requests.get(url, headers=headers, timeout=8).json()
+        res = requests.get(url, headers=headers, timeout=5).json()
         if crypto_id in res and 'usd' in res[crypto_id]: return res[crypto_id]['usd']
     except: pass
     try:
         url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}"
-        res_cc = requests.get(url_cc, timeout=8).json()
+        res_cc = requests.get(url_cc, timeout=5).json()
         if 'data' in res_cc and 'priceUsd' in res_cc['data']: return float(res_cc['data']['priceUsd'])
     except: pass
     try:
         symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
         url_bn = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-        res_bn = requests.get(url_bn, timeout=8).json()
+        res_bn = requests.get(url_bn, timeout=5).json()
         if 'price' in res_bn: return float(res_bn['price'])
     except: pass
     return None
@@ -188,19 +212,19 @@ def get_24h_history(crypto_id):
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
-        res = requests.get(url, headers=headers, timeout=8).json()
+        res = requests.get(url, headers=headers, timeout=5).json()
         if 'prices' in res and len(res['prices']) > 4: return res['prices']
     except: pass
     try:
         url_cc = f"https://api.coincap.io/v2/assets/{crypto_id}/history?interval=h1"
-        res_cc = requests.get(url_cc, timeout=8).json()
+        res_cc = requests.get(url_cc, timeout=5).json()
         if 'data' in res_cc and len(res_cc['data']) > 4:
             return [[int(item['time']), float(item['priceUsd'])] for item in res_cc['data']]
     except: pass
     try:
         symbol = binance_symbol_map.get(crypto_id, f"{crypto_id.upper()}USDT")
         url_bn = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1h&limit=24"
-        res_bn = requests.get(url_bn, timeout=8).json()
+        res_bn = requests.get(url_bn, timeout=5).json()
         if len(res_bn) > 4:
             return [[int(item[0]), float(item[4])] for item in res_bn]
     except: pass
@@ -247,12 +271,10 @@ def update_binance_prices():
     except Exception as e:
         print(f"Error fetching Binance prices: {e}")
 
-# PINDAHIN AMAN: Cuma manggil API Binance kalau user buka link ini
 @app.route('/api/live-prices')
 def get_live_prices():
     prices = cache.get('binance_live_prices')
     if prices is None:
-        # Kalau cache kosong (baru nyala), ambil langsung sekali
         update_binance_prices()
         prices = cache.get('binance_live_prices')
     
@@ -262,11 +284,49 @@ def get_live_prices():
     return jsonify({"status": "success", "data": prices})
 
 # ==========================================
-# 7. SCHEDULLER & INIT
+# 7. COINGECKO TOP 250 KOIN (5 MENIT)
+# ==========================================
+def update_coingecko_top250():
+    """Fungsi Scheduler: Ambil Top 250 koin dari CoinGecko tiap 5 menit"""
+    try:
+        url_cg = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false"
+        headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
+        response = requests.get(url_cg, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            price_dict = {}
+            for coin in data:
+                price_dict[coin['id']] = {
+                    "price": coin['current_price'],
+                    "symbol": coin['symbol'].upper(),
+                    "image": coin['image'],
+                    "change_24h": coin['price_change_percentage_24h']
+                }
+            cache.set('coingecko_top_prices', price_dict, timeout=600) # Cache 10 menit
+            print("[CoinGecko] Updated Top 250 prices!")
+    except Exception as e:
+        print(f"Error fetching CoinGecko Top 250: {e}")
+
+@app.route('/api/top-coins')
+def get_top_coins():
+    """API untuk Frontend: Ambil data Top 250 koin (Binance + CoinGecko)"""
+    binance_prices = cache.get('binance_live_prices') or {}
+    cg_prices = cache.get('coingecko_top_prices') or {}
+    
+    return jsonify({
+        "status": "success", 
+        "binance_realtime": binance_prices, 
+        "coingecko_top250": cg_prices
+    })
+
+# ==========================================
+# 8. SCHEDULLER & INIT
 # ==========================================
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
+scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5) # Update CoinGecko tiap 5 menit
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
@@ -277,6 +337,11 @@ def get_ai_predictions():
     for p in predictions:
         result.append({ "crypto_id": p.crypto_id, "timestamp": p.timestamp.isoformat(), "price_at_pred": p.price_at_pred, "prediction": p.prediction, "price_at_result": p.price_at_result, "status": p.status })
     return jsonify({"status": "success", "data": result})
+
+# Isi cache awal saat server nyala
+with app.app_context():
+    update_binance_prices()
+    update_coingecko_top250()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
