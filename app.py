@@ -23,7 +23,6 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Fix untuk psycopg v3 & URL Database Render/Supabase
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 
 if database_url.startswith("postgres://"):
@@ -71,7 +70,7 @@ binance_symbol_map = {
     "tron": "TRXUSDT", "avalanche-2": "AVAXUSDT", "polkadot": "DOTUSDT", 
     "chainlink": "LINKUSDT", "toncoin": "TONUSDT", "shiba-inu": "SHIBUSDT", 
     "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT",
-    "hyperliquid": "HYPEUSDT" # DITAMBAHKAN: Hyperliquid
+    "hyperliquid": "HYPEUSDT"
 }
 
 def get_exchange_rate(target_fiat):
@@ -194,9 +193,8 @@ def get_pivot_points():
     return jsonify({"status": "error", "message": "Failed to calculate pivot points"})
 
 # ==========================================
-# 5. AI PREDICTION HELPERS
+# 5. AI PREDICTION HELPERS (ANTI DOUBLE)
 # ==========================================
-# DITAMBAHKAN: hyperliquid
 SUPPORTED_COINS = [ "bitcoin", "ethereum", "binancecoin", "solana", "ripple", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar", "hyperliquid" ]
 
 def get_live_price(crypto_id):
@@ -244,8 +242,10 @@ def get_24h_history(crypto_id):
 def ai_predict_job():
     with app.app_context():
         now = datetime.datetime.utcnow()
-        one_hour_ago = now - datetime.timedelta(hours=1)
-        pending_preds = Prediction.query.filter(Prediction.timestamp <= one_hour_ago, Prediction.status == 'PENDING').all()
+        
+        # 1. Ubah PENDING jadi WIN/LOSE jika sudah lebih dari 30 menit
+        thirty_mins_ago = now - datetime.timedelta(minutes=30)
+        pending_preds = Prediction.query.filter(Prediction.timestamp <= thirty_mins_ago, Prediction.status == 'PENDING').all()
         for pred in pending_preds:
             current_price = get_live_price(pred.crypto_id)
             if current_price:
@@ -253,18 +253,31 @@ def ai_predict_job():
                 if pred.prediction == 'UP' and current_price > pred.price_at_pred: pred.status = 'WIN'
                 elif pred.prediction == 'DOWN' and current_price < pred.price_at_pred: pred.status = 'WIN'
                 else: pred.status = 'LOSE'
-                db.session.commit()
+        db.session.commit()
+        
+        # 2. Hapus data yang sudah lebih dari 24 jam
         expired_time = now - datetime.timedelta(hours=24)
         Prediction.query.filter(Prediction.timestamp < expired_time).delete()
         db.session.commit()
+        
+        # 3. Buat Prediksi Baru (DENGAN SISTEM ANTI-DOUBLE)
         for coin in SUPPORTED_COINS:
-            history = get_24h_history(coin)
-            if history:
-                current_price = history[-1][1]
-                price_4h_ago = history[-4][1] if len(history) > 4 else history[0][1]
-                pred_direction = 'UP' if current_price > price_4h_ago else 'DOWN'
-                new_pred = Prediction(crypto_id=coin, price_at_pred=current_price, prediction=pred_direction)
-                db.session.add(new_pred)
+            # Cek apakah koin ini sudah ada prediksinya dalam 15 menit terakhir
+            fifteen_mins_ago = now - datetime.timedelta(minutes=15)
+            existing_recent = Prediction.query.filter(
+                Prediction.crypto_id == coin,
+                Prediction.timestamp >= fifteen_mins_ago
+            ).first()
+            
+            # Kalau belum ada, baru buat prediksi baru
+            if not existing_recent:
+                history = get_24h_history(coin)
+                if history:
+                    current_price = history[-1][1]
+                    price_4h_ago = history[-4][1] if len(history) > 4 else history[0][1]
+                    pred_direction = 'UP' if current_price > price_4h_ago else 'DOWN'
+                    new_pred = Prediction(crypto_id=coin, price_at_pred=current_price, prediction=pred_direction)
+                    db.session.add(new_pred)
         db.session.commit()
         print(f"[{now}] AI Prediction Job Completed!")
 
@@ -381,13 +394,19 @@ except Exception as e:
     print(f"FATAL ERROR INITIALIZING DATABASE: {e}", file=sys.stderr)
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
+
+# DIUBAH: Prediksi sekarang jalan tiap 30 menit, bukan per jam
+scheduler.add_job(func=ai_predict_job, trigger="interval", minutes=30)
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
 scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
+
+# Job Awal saat server nyala
 scheduler.add_job(func=update_binance_prices, trigger="date")
 scheduler.add_job(func=update_coingecko_top250, trigger="date")
 scheduler.add_job(func=update_chart_cache, trigger="date")
+scheduler.add_job(func=ai_predict_job, trigger="date") # Biar langsung isi awal, tapi aman dari double
+
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
