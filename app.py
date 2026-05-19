@@ -1,4 +1,5 @@
 import os
+import sys
 import datetime
 import time
 import atexit
@@ -22,16 +23,19 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Fix untuk psycopg v3
+# Fix untuk psycopg v3 & URL Database Render/Supabase
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
-if database_url.startswith("postgresql://"):
+
+# Render sering pakai postgres://, SQLAlchemy 2.0 butuh postgresql://
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+elif database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# FIX ERROR DUPLICATE PREPARED STATEMENT (Cara yang benar)
-# Kita passing prepare_threshold=0 sebagai integer lewat connect_args
+# FIX ERROR DUPLICATE PREPARED STATEMENT
 if database_url.startswith("postgresql+psycopg://"):
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'connect_args': {
@@ -271,7 +275,6 @@ def update_chart_cache():
     with app.app_context():
         print("[Chart Cache] Mulai update data chart...")
         
-        # 1. HAPUS ROW DATABASE YANG SUDAH TIDAK DI-UPDATE LEBIH DARI 24 JAM
         try:
             time_limit = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
             stale_data = ChartCache.query.filter(ChartCache.updated_at < time_limit).all()
@@ -283,11 +286,8 @@ def update_chart_cache():
         except Exception as e:
             print(f"Error deleting stale chart data: {e}")
 
-        # 2. AMBIL DATA BARU DAN FILTER
         for coin in SUPPORTED_COINS:
             base_data = None
-            
-            # JALUR 1: CoinGecko
             try:
                 url = f"https://api.coingecko.com/api/v3/coins/{coin}/market_chart?vs_currency=usd&days=1"
                 headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
@@ -298,7 +298,6 @@ def update_chart_cache():
                         base_data = [{"time": int(item[0] / 1000), "value": item[1]} for item in data['prices']]
             except Exception: pass
             
-            # JALUR 2: CoinCap (Cadangan)
             if not base_data:
                 try:
                     url_cc = f"https://api.coincap.io/v2/assets/{coin}/history?interval=h1"
@@ -309,11 +308,9 @@ def update_chart_cache():
                             base_data = [{"time": int(item['time'] / 1000), "value": float(item['priceUsd'])} for item in data_cc['data']]
                 except Exception: pass
 
-            # FILTER: Hapus data point yang lebih dari 24 jam lalu
             if base_data:
                 now = datetime.datetime.utcnow()
                 twenty_four_hours_ago_ts = int((now - datetime.timedelta(hours=24)).timestamp())
-                
                 filtered_data = [item for item in base_data if item['time'] >= twenty_four_hours_ago_ts]
                 
                 if filtered_data and len(filtered_data) > 2:
@@ -326,7 +323,6 @@ def update_chart_cache():
                         db.session.add(new_cache)
                     db.session.commit()
             
-            # Delay 1.5 detik agar tidak kena Rate Limit CoinGecko
             time.sleep(1.5)
             
         print("[Chart Cache] Selesai update data chart!")
@@ -403,28 +399,37 @@ def get_top_coins():
     })
 
 # ==========================================
-# 9. SCHEDULLER & INIT
+# 9. SCHEDULLER & INIT (DENGAN ERROR HANDLING)
 # ==========================================
 
-# 1. Pastikan tabel database sudah dibuat
-with app.app_context():
-    db.create_all()
+# Inisialisasi Database dengan Try-Except biar kelihatan error-nya di Render log
+try:
+    with app.app_context():
+        db.create_all()
+        print("DATABASE INIT: Tables created/verified successfully.")
+except Exception as e:
+    print(f"FATAL ERROR INITIALIZING DATABASE: {e}", file=sys.stderr)
 
-# 2. Setup Scheduler
-scheduler = BackgroundScheduler()
+# Setup Scheduler
+try:
+    scheduler = BackgroundScheduler()
 
-# Job Rutin
-scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
-scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
-scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
-scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
+    # Job Rutin
+    scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
+    scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
+    scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
+    scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
 
-# Job Awal (Jalankan SEKALI di background saat server nyala agar tidak blocking Gunicorn)
-scheduler.add_job(func=update_binance_prices, trigger="date")
-scheduler.add_job(func=update_coingecko_top250, trigger="date")
-scheduler.add_job(func=update_chart_cache, trigger="date")
+    # Job Awal
+    scheduler.add_job(func=update_binance_prices, trigger="date")
+    scheduler.add_job(func=update_coingecko_top250, trigger="date")
+    scheduler.add_job(func=update_chart_cache, trigger="date")
 
-scheduler.start()
+    scheduler.start()
+    print("SCHEDULER INIT: BackgroundScheduler started successfully.")
+except Exception as e:
+    print(f"FATAL ERROR STARTING SCHEDULER: {e}", file=sys.stderr)
+
 atexit.register(lambda: scheduler.shutdown())
 
 @app.route('/api/ai-predictions')
