@@ -55,9 +55,6 @@ class ChartCache(db.Model):
     chart_data = db.Column(db.JSON, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-with app.app_context():
-    db.create_all()
-
 # ==========================================
 # 3. HELPER & MAPPING
 # ==========================================
@@ -192,7 +189,6 @@ def get_pivot_points():
 # ==========================================
 # 5. AI PREDICTION HELPERS
 # ==========================================
-# Hapus Tether & USDC karena prediksi stablecoin tidak berguna
 SUPPORTED_COINS = [ "bitcoin", "ethereum", "binancecoin", "solana", "ripple", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar" ]
 
 def get_live_price(crypto_id):
@@ -405,11 +401,26 @@ def get_top_coins():
 # ==========================================
 # 9. SCHEDULLER & INIT
 # ==========================================
+
+# 1. Pastikan tabel database sudah dibuat (ini cepat, tidak akan nge-block Gunicorn)
+with app.app_context():
+    db.create_all()
+
+# 2. Setup Scheduler
 scheduler = BackgroundScheduler()
+
+# Job Rutin (Berjalan tiap interval yang ditentukan)
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
 scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
+
+# Job Awal (trigger="date" artinya jalankan SEKALI sesegera mungkin di background saat server nyala)
+# Ini menggantikan pemanggilan fungsi langsung yang bikin Gunicorn timeout tadi.
+scheduler.add_job(func=update_binance_prices, trigger="date")
+scheduler.add_job(func=update_coingecko_top250, trigger="date")
+scheduler.add_job(func=update_chart_cache, trigger="date")
+
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
@@ -420,11 +431,6 @@ def get_ai_predictions():
     for p in predictions:
         result.append({ "crypto_id": p.crypto_id, "timestamp": p.timestamp.isoformat(), "price_at_pred": p.price_at_pred, "prediction": p.prediction, "price_at_result": p.price_at_result, "status": p.status })
     return jsonify({"status": "success", "data": result})
-
-with app.app_context():
-    update_binance_prices()
-    update_coingecko_top250()
-    update_chart_cache()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
