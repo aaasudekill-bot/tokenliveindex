@@ -22,19 +22,23 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Fix untuk psycopg v3 & FIX ERROR DUPLICATE PREPARED STATEMENT
+# Fix untuk psycopg v3
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    
-    # Matikan prepared statements Psycopg v3 agar tidak konflik dengan multi-threading APScheduler
-    if "?" in database_url:
-        database_url += "&prepare_threshold=0"
-    else:
-        database_url += "?prepare_threshold=0"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# FIX ERROR DUPLICATE PREPARED STATEMENT (Cara yang benar)
+# Kita passing prepare_threshold=0 sebagai integer lewat connect_args
+if database_url.startswith("postgresql+psycopg://"):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {
+            'prepare_threshold': 0
+        }
+    }
+
 db = SQLAlchemy(app)
 
 # ==========================================
@@ -402,21 +406,20 @@ def get_top_coins():
 # 9. SCHEDULLER & INIT
 # ==========================================
 
-# 1. Pastikan tabel database sudah dibuat (ini cepat, tidak akan nge-block Gunicorn)
+# 1. Pastikan tabel database sudah dibuat
 with app.app_context():
     db.create_all()
 
 # 2. Setup Scheduler
 scheduler = BackgroundScheduler()
 
-# Job Rutin (Berjalan tiap interval yang ditentukan)
+# Job Rutin
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
 scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
 
-# Job Awal (trigger="date" artinya jalankan SEKALI sesegera mungkin di background saat server nyala)
-# Ini menggantikan pemanggilan fungsi langsung yang bikin Gunicorn timeout tadi.
+# Job Awal (Jalankan SEKALI di background saat server nyala agar tidak blocking Gunicorn)
 scheduler.add_job(func=update_binance_prices, trigger="date")
 scheduler.add_job(func=update_coingecko_top250, trigger="date")
 scheduler.add_job(func=update_chart_cache, trigger="date")
