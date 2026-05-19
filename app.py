@@ -1,6 +1,6 @@
 import os
 import datetime
-import time # Ditambahkan untuk delay scheduler
+import time
 import atexit
 from flask import Flask, request, jsonify
 import requests
@@ -22,10 +22,17 @@ app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 300
 cache = Cache(app)
 
-# Fix untuk psycopg v3 (Python 3.14 support)
+# Fix untuk psycopg v3 & FIX ERROR DUPLICATE PREPARED STATEMENT
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    
+    # Matikan prepared statements Psycopg v3 agar tidak konflik dengan multi-threading APScheduler
+    if "?" in database_url:
+        database_url += "&prepare_threshold=0"
+    else:
+        database_url += "?prepare_threshold=0"
+
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -42,11 +49,10 @@ class Prediction(db.Model):
     price_at_result = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(10), default='PENDING')
 
-# MODEL BARU: Untuk menyimpan cache chart
 class ChartCache(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     crypto_id = db.Column(db.String(50), unique=True, nullable=False)
-    chart_data = db.Column(db.JSON, nullable=True) # Tipe JSON untuk array chart
+    chart_data = db.Column(db.JSON, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 with app.app_context():
@@ -56,9 +62,9 @@ with app.app_context():
 # 3. HELPER & MAPPING
 # ==========================================
 binance_symbol_map = { 
-    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT", "tether": "USDTUSDC", 
+    "bitcoin": "BTCUSDT", "ethereum": "ETHUSDT", 
     "binancecoin": "BNBUSDT", "solana": "SOLUSDT", "ripple": "XRPUSDT", 
-    "usd-coin": "USDCUSDT", "cardano": "ADAUSDT", "dogecoin": "DOGEUSDT", 
+    "cardano": "ADAUSDT", "dogecoin": "DOGEUSDT", 
     "tron": "TRXUSDT", "avalanche-2": "AVAXUSDT", "polkadot": "DOTUSDT", 
     "chainlink": "LINKUSDT", "toncoin": "TONUSDT", "shiba-inu": "SHIBUSDT", 
     "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT" 
@@ -90,7 +96,7 @@ def get_exchange_rate(target_fiat):
 
 @app.route('/')
 def index():
-    return "HALO INI KODE BARU TANGGAL 18 MEI - API LIVES!"
+    return "API LIVES!"
 
 @app.route('/api/convert', methods=['GET'])
 def convert():
@@ -186,7 +192,8 @@ def get_pivot_points():
 # ==========================================
 # 5. AI PREDICTION HELPERS
 # ==========================================
-SUPPORTED_COINS = [ "bitcoin", "ethereum", "tether", "binancecoin", "solana", "ripple", "usd-coin", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar" ]
+# Hapus Tether & USDC karena prediksi stablecoin tidak berguna
+SUPPORTED_COINS = [ "bitcoin", "ethereum", "binancecoin", "solana", "ripple", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar" ]
 
 def get_live_price(crypto_id):
     try:
@@ -258,16 +265,29 @@ def ai_predict_job():
         print(f"[{now}] AI Prediction Job Completed!")
 
 # ==========================================
-# 6. CHART CACHE SCHEDULER (BARU)
+# 6. CHART CACHE SCHEDULER (DENGAN FILTER 24 JAM & HAPUS DATA BASI)
 # ==========================================
 def update_chart_cache():
-    """Fungsi Scheduler: Ambil chart 24jam dari CoinGecko/CoinCap, simpan ke DB tiap 5 menit"""
     with app.app_context():
         print("[Chart Cache] Mulai update data chart...")
+        
+        # 1. HAPUS ROW DATABASE YANG SUDAH TIDAK DI-UPDATE LEBIH DARI 24 JAM
+        try:
+            time_limit = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+            stale_data = ChartCache.query.filter(ChartCache.updated_at < time_limit).all()
+            if stale_data:
+                for stale in stale_data:
+                    db.session.delete(stale)
+                db.session.commit()
+                print(f"[Chart Cache] Menghapus {len(stale_data)} data chart basi (>24jam).")
+        except Exception as e:
+            print(f"Error deleting stale chart data: {e}")
+
+        # 2. AMBIL DATA BARU DAN FILTER
         for coin in SUPPORTED_COINS:
             base_data = None
             
-            # JALUR 1: CoinGecko (Pakai API Key)
+            # JALUR 1: CoinGecko
             try:
                 url = f"https://api.coingecko.com/api/v3/coins/{coin}/market_chart?vs_currency=usd&days=1"
                 headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
@@ -289,16 +309,22 @@ def update_chart_cache():
                             base_data = [{"time": int(item['time'] / 1000), "value": float(item['priceUsd'])} for item in data_cc['data']]
                 except Exception: pass
 
-            # Simpan ke Database PostgreSQL / SQLite
+            # FILTER: Hapus data point yang lebih dari 24 jam lalu
             if base_data:
-                existing = ChartCache.query.filter_by(crypto_id=coin).first()
-                if existing:
-                    existing.chart_data = base_data
-                    existing.updated_at = datetime.datetime.utcnow()
-                else:
-                    new_cache = ChartCache(crypto_id=coin, chart_data=base_data)
-                    db.session.add(new_cache)
-                db.session.commit()
+                now = datetime.datetime.utcnow()
+                twenty_four_hours_ago_ts = int((now - datetime.timedelta(hours=24)).timestamp())
+                
+                filtered_data = [item for item in base_data if item['time'] >= twenty_four_hours_ago_ts]
+                
+                if filtered_data and len(filtered_data) > 2:
+                    existing = ChartCache.query.filter_by(crypto_id=coin).first()
+                    if existing:
+                        existing.chart_data = filtered_data
+                        existing.updated_at = datetime.datetime.utcnow()
+                    else:
+                        new_cache = ChartCache(crypto_id=coin, chart_data=filtered_data)
+                        db.session.add(new_cache)
+                    db.session.commit()
             
             # Delay 1.5 detik agar tidak kena Rate Limit CoinGecko
             time.sleep(1.5)
@@ -307,7 +333,6 @@ def update_chart_cache():
 
 @app.route('/api/cached-chart')
 def get_cached_chart():
-    """API untuk Frontend: Ambil chart dari database lokal (super cepat & tanpa blokir)"""
     crypto_id = request.args.get('crypto_id', 'bitcoin')
     cache_entry = ChartCache.query.filter_by(crypto_id=crypto_id).first()
     
@@ -328,7 +353,7 @@ def update_binance_prices():
             price_dict = {item['symbol']: float(item['price']) for item in data}
             cache.set('binance_live_prices', price_dict, timeout=10)
     except Exception as e:
-        print(f"Error fetching Binance prices: {e}")
+        pass
 
 @app.route('/api/live-prices')
 def get_live_prices():
@@ -364,7 +389,7 @@ def update_coingecko_top250():
             cache.set('coingecko_top_prices', price_dict, timeout=600)
             print("[CoinGecko] Updated Top 250 prices!")
     except Exception as e:
-        print(f"Error fetching CoinGecko Top 250: {e}")
+        pass
 
 @app.route('/api/top-coins')
 def get_top_coins():
@@ -384,7 +409,7 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
 scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
 scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
-scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5) # JOB BARU CHART
+scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
@@ -399,7 +424,7 @@ def get_ai_predictions():
 with app.app_context():
     update_binance_prices()
     update_coingecko_top250()
-    update_chart_cache() # Isi cache chart saat server pertama kali nyala
+    update_chart_cache()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
