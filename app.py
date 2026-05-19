@@ -26,7 +26,6 @@ cache = Cache(app)
 # Fix untuk psycopg v3 & URL Database Render/Supabase
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///predictions.db')
 
-# Render sering pakai postgres://, SQLAlchemy 2.0 butuh postgresql://
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
 elif database_url.startswith("postgresql://"):
@@ -35,7 +34,6 @@ elif database_url.startswith("postgresql://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# FIX ERROR DUPLICATE PREPARED STATEMENT
 if database_url.startswith("postgresql+psycopg://"):
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'connect_args': {
@@ -72,7 +70,8 @@ binance_symbol_map = {
     "cardano": "ADAUSDT", "dogecoin": "DOGEUSDT", 
     "tron": "TRXUSDT", "avalanche-2": "AVAXUSDT", "polkadot": "DOTUSDT", 
     "chainlink": "LINKUSDT", "toncoin": "TONUSDT", "shiba-inu": "SHIBUSDT", 
-    "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT" 
+    "litecoin": "LTCUSDT", "uniswap": "UNIUSDT", "stellar": "XLMUSDT",
+    "hyperliquid": "HYPEUSDT" # DITAMBAHKAN: Hyperliquid
 }
 
 def get_exchange_rate(target_fiat):
@@ -197,7 +196,8 @@ def get_pivot_points():
 # ==========================================
 # 5. AI PREDICTION HELPERS
 # ==========================================
-SUPPORTED_COINS = [ "bitcoin", "ethereum", "binancecoin", "solana", "ripple", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar" ]
+# DITAMBAHKAN: hyperliquid
+SUPPORTED_COINS = [ "bitcoin", "ethereum", "binancecoin", "solana", "ripple", "cardano", "dogecoin", "tron", "avalanche-2", "polkadot", "chainlink", "toncoin", "shiba-inu", "litecoin", "uniswap", "stellar", "hyperliquid" ]
 
 def get_live_price(crypto_id):
     try:
@@ -269,22 +269,18 @@ def ai_predict_job():
         print(f"[{now}] AI Prediction Job Completed!")
 
 # ==========================================
-# 6. CHART CACHE SCHEDULER (DENGAN FILTER 24 JAM & HAPUS DATA BASI)
+# 6. CHART CACHE SCHEDULER
 # ==========================================
 def update_chart_cache():
     with app.app_context():
         print("[Chart Cache] Mulai update data chart...")
-        
         try:
             time_limit = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
             stale_data = ChartCache.query.filter(ChartCache.updated_at < time_limit).all()
             if stale_data:
-                for stale in stale_data:
-                    db.session.delete(stale)
+                for stale in stale_data: db.session.delete(stale)
                 db.session.commit()
-                print(f"[Chart Cache] Menghapus {len(stale_data)} data chart basi (>24jam).")
-        except Exception as e:
-            print(f"Error deleting stale chart data: {e}")
+        except Exception as e: pass
 
         for coin in SUPPORTED_COINS:
             base_data = None
@@ -312,7 +308,6 @@ def update_chart_cache():
                 now = datetime.datetime.utcnow()
                 twenty_four_hours_ago_ts = int((now - datetime.timedelta(hours=24)).timestamp())
                 filtered_data = [item for item in base_data if item['time'] >= twenty_four_hours_ago_ts]
-                
                 if filtered_data and len(filtered_data) > 2:
                     existing = ChartCache.query.filter_by(crypto_id=coin).first()
                     if existing:
@@ -322,16 +317,13 @@ def update_chart_cache():
                         new_cache = ChartCache(crypto_id=coin, chart_data=filtered_data)
                         db.session.add(new_cache)
                     db.session.commit()
-            
             time.sleep(1.5)
-            
         print("[Chart Cache] Selesai update data chart!")
 
 @app.route('/api/cached-chart')
 def get_cached_chart():
     crypto_id = request.args.get('crypto_id', 'bitcoin')
     cache_entry = ChartCache.query.filter_by(crypto_id=crypto_id).first()
-    
     if cache_entry and cache_entry.chart_data:
         return jsonify({"status": "success", "data": cache_entry.chart_data})
     else:
@@ -348,8 +340,7 @@ def update_binance_prices():
             data = response.json()
             price_dict = {item['symbol']: float(item['price']) for item in data}
             cache.set('binance_live_prices', price_dict, timeout=10)
-    except Exception as e:
-        pass
+    except Exception as e: pass
 
 @app.route('/api/live-prices')
 def get_live_prices():
@@ -357,10 +348,7 @@ def get_live_prices():
     if prices is None:
         update_binance_prices()
         prices = cache.get('binance_live_prices')
-    
-    if prices is None:
-        return jsonify({"status": "error", "message": "Gagal mengambil data dari Binance"}), 500
-        
+    if prices is None: return jsonify({"status": "error", "message": "Gagal mengambil data dari Binance"}), 500
     return jsonify({"status": "success", "data": prices})
 
 # ==========================================
@@ -371,65 +359,36 @@ def update_coingecko_top250():
         url_cg = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false"
         headers = {"x-cg-demo-api-key": COINGECKO_API_KEY}
         response = requests.get(url_cg, headers=headers, timeout=10)
-        
         if response.status_code == 200:
             data = response.json()
             price_dict = {}
             for coin in data:
-                price_dict[coin['id']] = {
-                    "price": coin['current_price'],
-                    "symbol": coin['symbol'].upper(),
-                    "image": coin['image'],
-                    "change_24h": coin['price_change_percentage_24h']
-                }
+                price_dict[coin['id']] = {"price": coin['current_price'], "symbol": coin['symbol'].upper(), "image": coin['image'], "change_24h": coin['price_change_percentage_24h']}
             cache.set('coingecko_top_prices', price_dict, timeout=600)
-            print("[CoinGecko] Updated Top 250 prices!")
-    except Exception as e:
-        pass
+    except Exception as e: pass
 
 @app.route('/api/top-coins')
 def get_top_coins():
-    binance_prices = cache.get('binance_live_prices') or {}
-    cg_prices = cache.get('coingecko_top_prices') or {}
-    
-    return jsonify({
-        "status": "success", 
-        "binance_realtime": binance_prices, 
-        "coingecko_top250": cg_prices
-    })
+    return jsonify({"status": "success", "binance_realtime": cache.get('binance_live_prices') or {}, "coingecko_top250": cache.get('coingecko_top_prices') or {}})
 
 # ==========================================
-# 9. SCHEDULLER & INIT (DENGAN ERROR HANDLING)
+# 9. SCHEDULLER & INIT
 # ==========================================
-
-# Inisialisasi Database dengan Try-Except biar kelihatan error-nya di Render log
 try:
     with app.app_context():
         db.create_all()
-        print("DATABASE INIT: Tables created/verified successfully.")
 except Exception as e:
     print(f"FATAL ERROR INITIALIZING DATABASE: {e}", file=sys.stderr)
 
-# Setup Scheduler
-try:
-    scheduler = BackgroundScheduler()
-
-    # Job Rutin
-    scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
-    scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
-    scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
-    scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
-
-    # Job Awal
-    scheduler.add_job(func=update_binance_prices, trigger="date")
-    scheduler.add_job(func=update_coingecko_top250, trigger="date")
-    scheduler.add_job(func=update_chart_cache, trigger="date")
-
-    scheduler.start()
-    print("SCHEDULER INIT: BackgroundScheduler started successfully.")
-except Exception as e:
-    print(f"FATAL ERROR STARTING SCHEDULER: {e}", file=sys.stderr)
-
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=ai_predict_job, trigger="cron", minute="5")
+scheduler.add_job(func=update_binance_prices, trigger="interval", seconds=2)
+scheduler.add_job(func=update_coingecko_top250, trigger="interval", minutes=5)
+scheduler.add_job(func=update_chart_cache, trigger="interval", minutes=5)
+scheduler.add_job(func=update_binance_prices, trigger="date")
+scheduler.add_job(func=update_coingecko_top250, trigger="date")
+scheduler.add_job(func=update_chart_cache, trigger="date")
+scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 @app.route('/api/ai-predictions')
